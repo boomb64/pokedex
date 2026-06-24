@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokémon Shiny & Catch Tracker</title>
+  <style>
+    :root {
+      --bg-solid: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --panel-bg: rgba(255, 255, 255, 0.58);
+      --panel-border: rgba(255, 255, 255, 0.28);
+      --shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+      --accent: #4f7cff;
+      --accent-soft: rgba(79, 124, 255, 0.12);
+
+      --button-bg: #ffffff;
+      --button-text: #111827;
+      --button-border: #d1d5db;
+      --button-hover: #f8fafc;
+
+      --cell-size: 100px;
+      --cols: 8;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --panel-bg: rgba(9, 9, 11, 0.52);
+        --panel-border: rgba(255, 255, 255, 0.12);
+
+        --button-bg: #000000;
+        --button-text: #f9fafb;
+        --button-border: #374151;
+        --button-hover: #111111;
+      }
+    }
+
+    @keyframes bgShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg-solid);
+      background-attachment: fixed;
+      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+      transition: background 0.25s ease;
+    }
+
+    .page {
+      max-width: 1400px;
+      height: 100vh;
+      margin: 0 auto;
+      padding: 24px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      position: sticky;
+      top: 16px;
+      z-index: 30;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 18px;
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      flex: 0 0 auto;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .view-toggle,
+    .settings-button,
+    .variant-toggle {
+      border: 1px solid var(--button-border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--button-bg);
+      color: var(--button-text);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .view-toggle:hover,
+    .settings-button:hover,
+    .variant-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+      border-color: #aab3c5;
+      background: var(--button-hover);
+    }
+
+    .variant-toggle.active {
+      color: #111827;
+      background: linear-gradient(#f8fbff, #f8fbff) padding-box, linear-gradient(135deg, #6366f1, #22c55e, #06b6d4) border-box;
+      border-color: transparent;
+      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.18);
+    }
+
+    .hint {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .filter-btn,
+    .reset-btn {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--button-bg);
+      color: var(--button-text);
+      border-color: var(--button-border);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      user-select: none;
+    }
+
+    .filter-btn:hover,
+    .reset-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+      background: var(--button-hover);
+    }
+
+    .filter-btn.include {
+      color: #111827;
+      background:
+        linear-gradient(#f8fbff, #f8fbff) padding-box,
+        linear-gradient(135deg, #6366f1, #22c55e, #06b6d4) border-box;
+      border-color: transparent;
+      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.18);
+    }
+
+    .filter-btn.exclude {
+      color: #7f1d1d;
+      background:
+        linear-gradient(#fff7f7, #fff7f7) padding-box,
+        linear-gradient(135deg, #ef4444, #f97316, #f43f5e) border-box;
+      border-color: transparent;
+      box-shadow: 0 8px 18px rgba(239, 68, 68, 0.16);
+    }
+
+    .filter-select {
+      border: 1px solid var(--button-border);
+      border-radius: 999px;
+      padding: 9px 36px 9px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--button-bg) url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center;
+      background-size: 16px;
+      color: var(--button-text);
+      appearance: none;
+      -webkit-appearance: none;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+
+    .filter-select:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+      border-color: #aab3c5;
+      background-color: var(--button-hover);
+    }
+
+    .reset-btn { margin-left: auto; }
+
+    .search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1 1 320px;
+      max-width: 420px;
+    }
+
+    #searchBox {
+      width: 100%;
+      padding: 12px 44px 12px 14px;
+      font-size: 16px;
+      border: 1px solid var(--button-border);
+      border-radius: 14px;
+      outline: none;
+      background: var(--button-bg);
+      color: var(--button-text);
+      box-sizing: border-box;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    #searchBox:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    .clear-search {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 999px;
+      background: var(--button-hover);
+      color: var(--button-text);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .clear-search.visible { display: inline-flex; }
+
+    .status-line {
+      margin-left: auto;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+      display: flex;
+      gap: 16px;
+    }
+    
+    .status-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .status-val { font-weight: 800; color: var(--text); }
+    .status-shiny { color: #d97706; } /* Orange/Gold for shiny */
+    .status-caught { color: #059669; } /* Green for caught */
+
+    .grid-container {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px;
+      margin-bottom: 0;
+      border-radius: 18px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.2s ease;
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+    }
+
+    .grid-container.scrollable {
+      box-shadow:
+        0 12px 32px rgba(15, 23, 42, 0.14),
+        inset 0 -14px 14px -14px rgba(0, 0, 0, 0.22);
+    }
+
+    .grid {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      justify-content: start;
+      align-content: start;
+      grid-template-columns: repeat(var(--cols), var(--cell-size));
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      width: 100%;
+      border: 1px solid #d8dde6;
+      background: rgba(255, 255, 255, 0.95);
+      cursor: pointer;
+      border-radius: 14px;
+      padding: 0;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+
+    .cell:hover {
+      transform: scale(1.03);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter 0.3s ease, opacity 0.3s ease;
+    }
+
+    /* THE MAGIC: Turns standard sprite into a sleek Slate-Gray silhouette */
+    .cell.state-off img {
+      filter: brightness(0) invert(0.35);
+      opacity: 0.45;
+    }
+
+    .cell-label { display: none; }
+
+    .cell.active { border-color: var(--accent); }
+    .cell.extra { border-color: orange; }
+
+    .cell.state-off { border-color: rgba(148, 163, 184, 0.65); }
+    .cell.state-on { border-color: rgba(134, 239, 172, 0.95); }
+    .cell.state-extra { border-color: rgba(251, 191, 36, 0.95); }
+
+    .cell-tooltip {
+      position: fixed;
+      z-index: 1000;
+      display: none;
+      max-width: 220px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      pointer-events: none;
+      white-space: pre-line;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .cell-tooltip.visible { display: block; }
+
+    .cell-tooltip.state-off { background: rgba(148, 163, 184, 0.34); border-color: rgba(100, 116, 139, 0.35); color: #0f172a; }
+    .cell-tooltip.state-on { background: rgba(187, 247, 208, 0.85); border-color: rgba(34, 197, 94, 0.35); color: #14532d; }
+    .cell-tooltip.state-extra { background: rgba(254, 240, 138, 0.85); border-color: rgba(245, 158, 11, 0.40); color: #854d0e; }
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 50;
+    }
+
+    .settings-overlay.open { display: flex; }
+
+    .settings-card {
+      width: min(560px, 100%);
+      border-radius: 20px;
+      background: var(--panel-bg);
+      color: var(--text);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+    }
+
+    .settings-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .settings-header h2 { margin: 0; font-size: 20px; }
+
+    .settings-close {
+      border: 1px solid var(--button-border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--button-bg);
+      color: var(--button-text);
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .settings-close:hover { transform: translateY(-1px); background: var(--button-hover); }
+
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+    .color-field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 600; }
+    .color-input { width: 100%; height: 48px; padding: 0; border: none; border-radius: 14px; background: transparent; cursor: pointer; }
+    .color-input::-webkit-color-swatch-wrapper { padding: 0; }
+    .color-input::-webkit-color-swatch { border: 1px solid var(--button-border); border-radius: 14px; }
+    .color-input::-moz-color-swatch { border: 1px solid var(--button-border); border-radius: 14px; }
+
+    .preset-title { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--muted); }
+    .preset-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    .preset-btn { border: 1px solid var(--button-border); border-radius: 999px; padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; background: var(--button-bg); color: var(--button-text); }
+
+    .layout-option {
+      width: 100%; border: 1px solid var(--button-border); border-radius: 18px; padding: 14px 16px; cursor: pointer; text-align: left; background: var(--button-bg); color: var(--button-text); display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
+    }
+    .layout-option.active {
+      color: #111827; background: linear-gradient(#f8fbff, #f8fbff) padding-box, linear-gradient(135deg, #6366f1, #22c55e, #06b6d4) border-box; border-color: transparent; box-shadow: 0 8px 18px rgba(99, 102, 241, 0.18);
+    }
+    .layout-option-title { font-size: 15px; font-weight: 700; }
+    .layout-option-desc { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+    .settings-footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .settings-action { border: 1px solid var(--button-border); border-radius: 999px; padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; background: var(--button-bg); color: var(--button-text); }
+
+    .page.alt-layout .cell { aspect-ratio: auto; min-height: calc(var(--cell-size) * 1.6); display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 0; border-radius: 18px; background: rgba(255, 255, 255, 0.96); }
+    .page.alt-layout .cell img { width: 100%; height: calc(var(--cell-size) * 1.12); flex: 1 1 auto; object-fit: cover; }
+    .page.alt-layout .cell-label { display: block; padding: 10px 12px; border-top: 1px solid rgba(148, 163, 184, 0.35); font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* Variant visual tweaks for Alternate and List Layouts */
+    .page.alt-layout .cell[data-is-variant="true"] .cell-label { font-style: italic; }
+
+    .page.alt-layout .cell.state-off .cell-label { background: rgba(148, 163, 184, 0.26); color: #334155; }
+    .page.alt-layout .cell.state-on .cell-label { background: rgba(187, 247, 208, 0.82); color: #166534; }
+    .page.alt-layout .cell.state-extra .cell-label { background: rgba(254, 240, 138, 0.82); color: #854d0e; }
+
+    .page.list-mode .grid { grid-template-columns: 1fr; gap: 10px; }
+    .page.list-mode .cell { aspect-ratio: auto; height: 74px; width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 16px; }
+    .page.list-mode .cell img { width: 52px; height: 52px; border-radius: 10px; flex: 0 0 auto; }
+    .page.list-mode .cell-label { display: block; font-size: 14px; font-weight: 600; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .page.list-mode .cell.state-off .cell-label { color: #334155; }
+    .page.list-mode .cell.state-on .cell-label { color: #166534; }
+    .page.list-mode .cell.state-extra .cell-label { color: #854d0e; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="header-top">
+        <h1>Pokémon Tracker</h1>
+        <div class="header-controls">
+          <button id="variantToggle" class="variant-toggle" type="button" title="Shortcut: V">Variants: Hidden</button>
+          <button id="viewToggle" class="view-toggle" type="button">List View</button>
+        </div>
+      </div>
+
+      <p class="hint">Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.</p>
+
+      <div class="toolbar">
+        <select id="gameFilterSelect" class="filter-select">
+          <option value="all">Game: All (National Dex)</option>
+          <option value="swsh_base">Sword & Shield (Base)</option>
+          <option value="pla_base">Legends: Arceus</option>
+          <option value="sv_paldea">Scarlet & Violet (Paldea)</option>
+          <option value="sv_kitakami">Scarlet & Violet (Kitakami)</option>
+          <option value="sv_blueberry">Scarlet & Violet (Blueberry)</option>
+          <option value="za_base">Legends: Z-A (Base)</option>
+          <option value="za_dlc">Legends: Z-A (DLC)</option>
+        </select>
+        
+        <select id="stateFilterSelect" class="filter-select">
+          <option value="all">Filter: Any State</option>
+          <option value="caught">Filter: Caught (Any)</option>
+          <option value="missing">Filter: Missing</option>
+          <option value="shiny">Filter: Shiny</option>
+        </select>
+
+        <button id="resetFilters" class="reset-btn" type="button">Reset Filters</button>
+        <button id="settingsButton" class="settings-button" type="button">Settings</button>
+      </div>
+
+      <div class="search-row">
+        <div class="search-wrap">
+          <input type="text" id="searchBox" placeholder="Search by Dex # or Pokémon name...">
+          <button id="clearSearch" class="clear-search" type="button" aria-label="Clear search">×</button>
+        </div>
+        <div id="statusLine" class="status-line">
+          <div class="status-group">Showing: <span id="statVisible" class="status-val">0</span></div>
+          <div class="status-group">Caught: <span id="statCaught" class="status-val status-caught">0/1025</span></div>
+          <div class="status-group">Shiny: <span id="statShiny" class="status-val status-shiny">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-container" id="gridContainer">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="cell-tooltip" id="cellTooltip" aria-hidden="true"></div>
+
+  <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
+    <div class="settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-header">
+        <h2 id="settingsTitle">Background Settings</h2>
+        <button id="closeSettings" class="settings-close" type="button">Close</button>
+      </div>
+
+      <div class="settings-grid">
+        <label class="color-field" for="bgColor1">Color 1 <input id="bgColor1" class="color-input" type="color" value="#ffffff"></label>
+        <label class="color-field" for="bgColor2">Color 2 <input id="bgColor2" class="color-input" type="color" value="#ffffff"></label>
+      </div>
+
+      <button id="altLayoutToggle" class="layout-option" type="button" aria-pressed="false">
+        <span class="layout-option-title">Alternate Layout</span>
+        <span class="layout-option-desc">Image on top, label below</span>
+      </button>
+
+      <p class="preset-title">Presets</p>
+      <div class="preset-grid">
+        <button class="preset-btn" type="button" data-c1="#0f172a" data-c2="#38bdf8">Ocean</button>
+        <button class="preset-btn" type="button" data-c1="#4c1d95" data-c2="#ec4899">Sunset</button>
+        <button class="preset-btn" type="button" data-c1="#064e3b" data-c2="#22c55e">Forest</button>
+        <button class="preset-btn" type="button" data-c1="#111827" data-c2="#f59e0b">Ember</button>
+      </div>
+
+      <div class="settings-footer">
+        <button id="systemDefaultBtn" class="settings-action" type="button">Use System Default</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const page = document.querySelector(".page");
+    const grid = document.getElementById("grid");
+    const searchBox = document.getElementById("searchBox");
+    const clearSearch = document.getElementById("clearSearch");
+    
+    // Stats Elements
+    const statVisible = document.getElementById("statVisible");
+    const statCaught = document.getElementById("statCaught");
+    const statShiny = document.getElementById("statShiny");
+
+    const gridContainer = document.getElementById("gridContainer");
+    const viewToggle = document.getElementById("viewToggle");
+    const variantToggle = document.getElementById("variantToggle");
+    const resetFilters = document.getElementById("resetFilters");
+    const stateFilterSelect = document.getElementById("stateFilterSelect");
+    const gameFilterSelect = document.getElementById("gameFilterSelect");
+
+    const settingsButton = document.getElementById("settingsButton");
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const closeSettings = document.getElementById("closeSettings");
+    const systemDefaultBtn = document.getElementById("systemDefaultBtn");
+    const bgColor1 = document.getElementById("bgColor1");
+    const bgColor2 = document.getElementById("bgColor2");
+    const altLayoutToggle = document.getElementById("altLayoutToggle");
+    const cellTooltip = document.getElementById("cellTooltip");
+
+    let totalVisibleCells = 0;
+    const TARGET_CELL_SIZE = 100;
+    const GAP = 8;
+
+    const UI_STATE_KEY = "gridUiState";
+    const CELL_STATE_KEY = "cellStates";
+
+    // --- THE REGIONAL DICTIONARY ---
+    const regionalVariants = [
+      // Alolan
+      { id: "19-A", apiId: "10091", name: "Alolan Rattata", parentId: "19" },
+      { id: "20-A", apiId: "10092", name: "Alolan Raticate", parentId: "20" },
+      { id: "26-A", apiId: "10093", name: "Alolan Raichu", parentId: "26" },
+      { id: "27-A", apiId: "10094", name: "Alolan Sandshrew", parentId: "27" },
+      { id: "28-A", apiId: "10095", name: "Alolan Sandslash", parentId: "28" },
+      { id: "37-A", apiId: "10103", name: "Alolan Vulpix", parentId: "37" },
+      { id: "38-A", apiId: "10104", name: "Alolan Ninetales", parentId: "38" },
+      { id: "50-A", apiId: "10096", name: "Alolan Diglett", parentId: "50" },
+      { id: "51-A", apiId: "10097", name: "Alolan Dugtrio", parentId: "51" },
+      { id: "52-A", apiId: "10107", name: "Alolan Meowth", parentId: "52" },
+      { id: "53-A", apiId: "10108", name: "Alolan Persian", parentId: "53" },
+      { id: "74-A", apiId: "10109", name: "Alolan Geodude", parentId: "74" },
+      { id: "75-A", apiId: "10110", name: "Alolan Graveler", parentId: "75" },
+      { id: "76-A", apiId: "10111", name: "Alolan Golem", parentId: "76" },
+      { id: "88-A", apiId: "10112", name: "Alolan Grimer", parentId: "88" },
+      { id: "89-A", apiId: "10113", name: "Alolan Muk", parentId: "89" },
+      { id: "103-A", apiId: "10114", name: "Alolan Exeggutor", parentId: "103" },
+      { id: "105-A", apiId: "10115", name: "Alolan Marowak", parentId: "105" },
+
+      // Galarian
+      { id: "52-G", apiId: "10161", name: "Galarian Meowth", parentId: "52" },
+      { id: "77-G", apiId: "10162", name: "Galarian Ponyta", parentId: "77" },
+      { id: "78-G", apiId: "10163", name: "Galarian Rapidash", parentId: "78" },
+      { id: "79-G", apiId: "10164", name: "Galarian Slowpoke", parentId: "79" },
+      { id: "80-G", apiId: "10165", name: "Galarian Slowbro", parentId: "80" },
+      { id: "83-G", apiId: "10166", name: "Galarian Farfetch'd", parentId: "83" },
+      { id: "110-G", apiId: "10167", name: "Galarian Weezing", parentId: "110" },
+      { id: "122-G", apiId: "10168", name: "Galarian Mr. Mime", parentId: "122" },
+      { id: "144-G", apiId: "10169", name: "Galarian Articuno", parentId: "144" },
+      { id: "145-G", apiId: "10170", name: "Galarian Zapdos", parentId: "145" },
+      { id: "146-G", apiId: "10171", name: "Galarian Moltres", parentId: "146" },
+      { id: "199-G", apiId: "10172", name: "Galarian Slowking", parentId: "199" },
+      { id: "222-G", apiId: "10173", name: "Galarian Corsola", parentId: "222" },
+      { id: "263-G", apiId: "10174", name: "Galarian Zigzagoon", parentId: "263" },
+      { id: "264-G", apiId: "10175", name: "Galarian Linoone", parentId: "264" },
+      { id: "554-G", apiId: "10176", name: "Galarian Darumaka", parentId: "554" },
+      { id: "555-G", apiId: "10177", name: "Galarian Darmanitan", parentId: "555" },
+      { id: "555-GZ", apiId: "10178", name: "Galarian Darmanitan (Zen)", parentId: "555" },
+      { id: "562-G", apiId: "10179", name: "Galarian Yamask", parentId: "562" },
+      { id: "618-G", apiId: "10180", name: "Galarian Stunfisk", parentId: "618" },
+
+      // Hisuian
+      { id: "58-H", apiId: "10229", name: "Hisuian Growlithe", parentId: "58" },
+      { id: "59-H", apiId: "10230", name: "Hisuian Arcanine", parentId: "59" },
+      { id: "100-H", apiId: "10231", name: "Hisuian Voltorb", parentId: "100" },
+      { id: "101-H", apiId: "10232", name: "Hisuian Electrode", parentId: "101" },
+      { id: "157-H", apiId: "10233", name: "Hisuian Typhlosion", parentId: "157" },
+      { id: "211-H", apiId: "10234", name: "Hisuian Qwilfish", parentId: "211" },
+      { id: "215-H", apiId: "10235", name: "Hisuian Sneasel", parentId: "215" },
+      { id: "503-H", apiId: "10236", name: "Hisuian Samurott", parentId: "503" },
+      { id: "549-H", apiId: "10237", name: "Hisuian Lilligant", parentId: "549" },
+      { id: "570-H", apiId: "10239", name: "Hisuian Zorua", parentId: "570" },
+      { id: "571-H", apiId: "10240", name: "Hisuian Zoroark", parentId: "571" },
+      { id: "628-H", apiId: "10241", name: "Hisuian Braviary", parentId: "628" },
+      { id: "705-H", apiId: "10242", name: "Hisuian Sliggoo", parentId: "705" },
+      { id: "706-H", apiId: "10243", name: "Hisuian Goodra", parentId: "706" },
+      { id: "713-H", apiId: "10244", name: "Hisuian Avalugg", parentId: "713" },
+      { id: "724-H", apiId: "10238", name: "Hisuian Decidueye", parentId: "724" },
+
+      // Paldean
+      { id: "128-P1", apiId: "10250", name: "Paldean Tauros (Combat)", parentId: "128" },
+      { id: "128-P2", apiId: "10251", name: "Paldean Tauros (Blaze)", parentId: "128" },
+      { id: "128-P3", apiId: "10252", name: "Paldean Tauros (Aqua)", parentId: "128" },
+      { id: "194-P", apiId: "10253", name: "Paldean Wooper", parentId: "194" }
+    ];
+
+    // --- GAME ROSTERS (Ordered arrays based on in-game Pokedex) ---
+    const gameDexes = {
+      "swsh_base": ["810", "811", "812", "813", "814", "815", "816", "817", "818", "824", "825", "826", "10", "11", "12", "736", "737", "738", "163", "164", "821", "822", "823", "819", "820", "519", "520", "521", "827", "828", "263", "263-G", "264", "264-G", "862", "831", "832", "270", "271", "272", "273", "274", "275", "833", "834", "509", "510", "835", "836", "659", "660", "572", "573", "761", "762", "763", "43", "44", "45", "182", "406", "315", "407", "278", "279", "595", "596", "309", "310", "37", "37-A", "38", "38-A", "58", "59", "582", "583", "584", "220", "221", "473", "225", "361", "362", "478", "343", "344", "749", "750", "557", "558", "622", "623", "517", "518", "177", "178", "759", "760", "459", "460", "98", "99", "194", "195", "341", "342", "290", "291", "292", "236", "106", "107", "237", "674", "675", "599", "600", "601", "415", "416", "436", "437", "280", "281", "282", "475", "425", "426", "829", "830", "420", "421", "434", "435", "535", "536", "537", "355", "356", "477", "66", "67", "68", "92", "93", "94", "129", "130", "118", "119", "223", "224", "90", "91", "349", "350", "550", "746", "771", "568", "569", "850", "851", "837", "838", "839", "50", "50-A", "51", "51-A", "529", "530", "524", "525", "526", "532", "533", "534", "527", "528", "714", "715", "95", "208", "846", "847", "52", "52-G", "52-A", "863", "53", "53-A", "868", "869", "742", "743", "597", "598", "710", "711", "172", "25", "26", "26-A", "133", "134", "135", "136", "196", "197", "470", "471", "700", "840", "841", "842", "677", "678", "684", "685", "682", "683", "751", "752", "360", "202", "83", "83-G", "865", "170", "171", "453", "454", "559", "560", "618", "618-G", "213", "339", "340", "422", "423", "767", "768", "688", "689", "222", "222-G", "864", "859", "860", "861", "856", "857", "858", "757", "758", "624", "625", "538", "539", "109", "110", "110-G", "438", "185", "173", "35", "36", "175", "176", "468", "446", "143", "546", "547", "111", "112", "464", "574", "575", "576", "577", "578", "579", "588", "589", "616", "617", "605", "606", "613", "614", "627", "628", "629", "630", "451", "452", "607", "608", "609", "686", "687", "215", "461", "302", "303", "556", "561", "447", "448", "324", "778", "878", "879", "211", "592", "593", "747", "748", "845", "848", "849", "843", "844", "449", "450", "632", "631", "694", "695", "701", "328", "329", "330", "610", "611", "612", "562", "562-G", "867", "563", "679", "680", "681", "77", "77-G", "78", "78-G", "854", "855", "876", "708", "709", "755", "756", "765", "766", "877", "870", "780", "776", "777", "872", "873", "852", "853", "871", "458", "226", "320", "321", "712", "713", "781", "131", "337", "338", "439", "122", "122-G", "866", "554", "554-G", "555", "555-G", "555-GZ", "874", "875", "884", "479", "132", "880", "881", "882", "883", "4", "5", "6", "772", "773", "246", "247", "248", "633", "634", "635", "704", "705", "706", "782", "783", "784", "885", "886", "887", "888", "889", "890"],
+      "pla_base": ["722", "723", "724-H", "155", "156", "157-H", "501", "502", "503-H", "399", "400", "396", "397", "398", "403", "404", "405", "265", "266", "267", "268", "269", "77", "78", "133", "134", "135", "136", "196", "197", "470", "471", "700", "41", "42", "169", "425", "426", "401", "402", "418", "419", "412", "413", "414", "74", "75", "76", "234", "899", "446", "143", "46", "47", "172", "25", "26", "63", "64", "65", "390", "391", "392", "427", "428", "420", "421", "54", "55", "415", "416", "123", "900", "212", "214", "439", "122", "190", "424", "129", "130", "422", "423", "211-H", "904", "440", "113", "242", "406", "315", "407", "455", "548", "549-H", "114", "465", "339", "340", "453", "454", "280", "281", "282", "475", "193", "469", "449", "450", "417", "434", "435", "216", "217", "901", "704", "705-H", "706-H", "95", "208", "111", "112", "464", "438", "185", "108", "463", "175", "176", "468", "387", "388", "389", "137", "233", "474", "92", "93", "94", "442", "198", "430", "201", "363", "364", "365", "223", "224", "451", "452", "58-H", "59-H", "431", "432", "66", "67", "68", "441", "355", "356", "477", "393", "394", "395", "458", "226", "550", "902", "37", "37-A", "38", "38-A", "72", "73", "456", "457", "240", "126", "467", "81", "82", "462", "436", "437", "239", "125", "466", "207", "472", "443", "444", "445", "299", "476", "100-H", "101-H", "479", "433", "358", "200", "429", "173", "35", "36", "215-H", "215", "903", "461", "361", "362", "478", "408", "409", "410", "411", "220", "221", "473", "712", "713-H", "459", "460", "570-H", "571-H", "627", "628-H", "447", "448", "480", "481", "482", "485", "486", "488", "641", "642", "645", "905", "483", "484", "487", "493", "489", "490", "492", "491"],
+      "za_base": ["152", "153", "154", "498", "499", "500", "158", "159", "160", "661", "662", "663", "659", "660", "664", "665", "666", "13", "14", "15", "16", "17", "18", "179", "180", "181", "504", "505", "406", "315", "407", "129", "130", "688", "689", "120", "121", "669", "670", "671", "672", "673", "677", "678", "667", "668", "674", "675", "568", "569", "702", "172", "25", "26", "26-A", "173", "35", "36", "167", "168", "23", "24", "63", "64", "65", "92", "93", "94", "543", "544", "545", "679", "680", "681", "69", "70", "71", "511", "512", "513", "514", "515", "516", "307", "308", "309", "310", "280", "281", "282", "475", "228", "229", "333", "334", "531", "682", "683", "684", "685", "133", "134", "135", "136", "196", "197", "470", "471", "700", "427", "428", "353", "354", "582", "583", "584", "322", "323", "449", "450", "529", "530", "551", "552", "553", "123", "212", "127", "214", "1", "2", "3", "4", "5", "6", "7", "8", "9", "618", "618-G", "676", "686", "687", "690", "691", "692", "693", "694", "695", "696", "697", "698", "699", "701", "703", "704", "705", "706", "707", "708", "709", "710", "711", "712", "713", "714", "715", "716", "717", "718", "719", "225", "227", "302", "303", "304", "305", "306", "318", "319", "359", "361", "362", "478", "371", "372", "373", "374", "375", "376", "443", "444", "445", "447", "448", "459", "460", "559", "560", "587", "602", "603", "604", "607", "608", "609", "650", "651", "652", "653", "654", "655", "656", "657", "658", "870"],
+      "za_dlc": ["56", "57", "979", "52", "52-A", "52-G", "53", "53-A", "863", "83", "83-G", "865", "104", "105", "105-A", "137", "233", "474", "951", "952", "957", "958", "959", "967", "969", "970", "971", "972", "973", "977", "978", "352", "615", "622", "623", "211", "211-H", "904", "252", "253", "254", "255", "256", "257", "258", "259", "260", "349", "350", "358", "433", "39", "40", "174", "396", "397", "398", "325", "326", "931", "932", "933", "934", "316", "317", "41", "42", "169", "935", "936", "937", "942", "943", "944", "945", "122", "122-G", "439", "866", "590", "591", "485", "721", "638", "639", "640", "647", "648", "649", "720", "801", "802", "807", "808", "809", "821", "822", "823", "827", "828", "848", "849", "852", "853", "867", "876", "877", "900", "926", "927", "996", "997", "998", "999", "1000", "739", "740", "767", "768", "769", "770", "778", "780", "705-H", "706-H", "713-H", "479", "380", "381", "382", "383", "384", "491", "509", "510", "517", "518", "538", "539", "562", "562-G", "563"],
+      "sv_paldea": ["906", "907", "908", "909", "910", "911", "912", "913", "914", "915", "916", "917", "918", "919", "920", "187", "188", "189", "661", "662", "663", "921", "922", "923", "228", "229", "734", "735", "819", "820", "191", "192", "401", "402", "664", "665", "666", "415", "416", "821", "822", "823", "440", "113", "242", "298", "183", "184", "283", "284", "418", "419", "194-P", "980", "54", "55", "833", "834", "174", "39", "40", "280", "281", "282", "475", "96", "97", "92", "93", "94", "924", "925", "172", "25", "26", "926", "927", "287", "288", "289", "761", "762", "763", "928", "929", "930", "438", "185", "744", "745", "837", "838", "839", "403", "404", "405", "396", "397", "398", "741", "179", "180", "181", "548", "549", "285", "286", "840", "841", "842", "325", "326", "931", "200", "429", "296", "297", "739", "740", "757", "758", "231", "232", "878", "879", "443", "444", "445", "932", "933", "934", "278", "279", "129", "130", "846", "847", "550", "316", "317", "52", "53", "425", "426", "669", "670", "671", "50", "51", "324", "322", "323", "436", "437", "610", "611", "612", "56", "57", "979", "307", "308", "447", "448", "935", "936", "937", "339", "340", "938", "939", "704", "705", "706", "453", "454", "940", "941", "133", "134", "135", "136", "196", "197", "470", "471", "700", "206", "982", "585", "586", "203", "981", "88", "89", "942", "943", "848", "849", "702", "417", "944", "945", "234", "590", "591", "100", "101", "81", "82", "462", "132", "58", "59", "216", "217", "335", "336", "333", "334", "672", "673", "128-P1", "128-P2", "128-P3", "667", "668", "434", "435", "570", "571", "215", "461", "198", "430", "574", "575", "576", "854", "855", "778", "707", "876", "946", "947", "948", "949", "357", "753", "754", "950", "951", "952", "331", "332", "953", "954", "48", "49", "204", "205", "123", "212", "214", "955", "956", "449", "450", "551", "552", "553", "843", "844", "749", "750", "636", "637", "371", "372", "373", "957", "958", "959", "856", "857", "858", "859", "860", "861", "960", "961", "962", "963", "964", "965", "966", "967", "968", "302", "353", "354", "870", "701", "442", "714", "715", "885", "886", "887", "969", "970", "479", "971", "972", "765", "766", "775", "246", "247", "248", "874", "875", "871", "769", "770", "79", "80", "199", "422", "423", "90", "91", "211", "370", "456", "457", "779", "594", "690", "691", "692", "693", "602", "603", "604", "747", "748", "973", "147", "148", "149", "872", "873", "459", "460", "225", "613", "614", "361", "362", "478", "615", "974", "975", "712", "713", "627", "628", "624", "625", "983", "633", "634", "635", "976", "977", "978", "984", "985", "986", "987", "988", "989", "990", "991", "992", "993", "994", "995", "996", "997", "998", "999", "1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"],
+      "sv_kitakami": ["167", "168", "193", "469", "194", "195", "261", "262", "313", "314", "341", "342", "540", "541", "542", "742", "743", "23", "24", "172", "25", "26", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "38", "60", "61", "62", "186", "440", "113", "242", "163", "164", "190", "424", "220", "221", "473", "234", "273", "274", "275", "833", "834", "174", "39", "40", "280", "281", "282", "475", "548", "549", "708", "709", "744", "745", "819", "820", "948", "949", "1012", "1013", "58", "59", "74", "75", "76", "438", "185", "532", "533", "534", "714", "715", "846", "847", "856", "857", "858", "877", "968", "924", "925", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "741", "27", "28", "92", "93", "94", "207", "472", "228", "229", "325", "326", "629", "630", "749", "750", "782", "783", "784", "962", "109", "110", "619", "620", "355", "356", "477", "433", "358", "218", "219", "607", "608", "609", "283", "284", "173", "35", "36", "436", "437", "969", "970", "349", "350", "206", "982", "339", "340", "443", "444", "445", "703", "757", "758", "215", "461", "361", "362", "478", "602", "603", "604", "704", "705", "706", "580", "581", "845", "624", "625", "983", "778", "859", "860", "861", "876", "88", "89", "942", "943", "1014", "1015", "1016", "1017"],
+      "sv_blueberry": ["84", "85", "102", "103", "103-A", "111", "112", "464", "48", "49", "239", "125", "466", "240", "126", "467", "440", "113", "242", "123", "212", "900", "128", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "37-A", "38", "38-A", "60", "61", "62", "186", "129", "130", "163", "164", "190", "424", "214", "72", "73", "116", "117", "230", "235", "546", "547", "764", "287", "288", "289", "43", "44", "45", "182", "50", "50-A", "51", "51-A", "88", "88-A", "89", "89-A", "335", "336", "739", "740", "741", "79", "79-G", "80", "80-G", "199", "199-G", "170", "171", "686", "687", "370", "456", "457", "594", "324", "661", "662", "663", "751", "752", "236", "106", "107", "237", "74", "74-A", "75", "75-A", "76", "76-A", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "638", "639", "640", "647", "311", "312", "207", "472", "622", "623", "322", "323", "629", "630", "137", "233", "474", "595", "596", "962", "109", "110", "374", "375", "376", "610", "611", "612", "86", "87", "131", "211", "904", "577", "578", "579", "209", "210", "613", "614", "27", "27-A", "28", "28-A", "459", "460", "884", "1018", "1019", "1", "2", "3", "4", "5", "6", "7", "8", "9", "152", "153", "154", "155", "156", "157", "158", "159", "160", "252", "253", "254", "255", "256", "257", "258", "259", "260", "387", "388", "389", "390", "391", "392", "393", "394", "395", "495", "496", "497", "498", "499", "500", "501", "502", "503", "650", "651", "652", "653", "654", "655", "656", "657", "658", "722", "723", "724", "725", "726", "727", "728", "729", "730", "810", "811", "812", "813", "814", "815", "816", "817", "818", "1020", "1021", "1023", "1022", "1024", "1009", "1010", "1025"]
+    };
+
+    let allCells = [];
+    const cellRegistry = new Map();
+    const savedStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
+
+    const defaultUiState = { 
+      search: "", 
+      viewMode: "grid", 
+      altLayout: false, 
+      showVariants: false, 
+      stateFilter: "all", 
+      gameFilter: "all", // NEW STATE
+      filters: [], 
+      theme: { mode: "system" } 
+    };
+    
+    function loadUiState() {
+      const raw = localStorage.getItem(UI_STATE_KEY);
+      if (!raw) return { ...defaultUiState };
+      try {
+        const p = JSON.parse(raw);
+        return {
+          search: typeof p.search === "string" ? p.search : defaultUiState.search,
+          viewMode: p.viewMode === "list" ? "list" : "grid",
+          altLayout: Boolean(p.altLayout),
+          showVariants: Boolean(p.showVariants),
+          stateFilter: p.stateFilter || "all",
+          gameFilter: p.gameFilter || "all",
+          filters: Array.isArray(p.filters) ? p.filters : [],
+          theme: p.theme && typeof p.theme === "object" ? p.theme : { mode: "system" }
+        };
+      } catch { return { ...defaultUiState }; }
+    }
+
+    function saveUiState() {
+      localStorage.setItem(UI_STATE_KEY, JSON.stringify({
+        search: searchBox.value, 
+        viewMode, 
+        altLayout: altLayoutEnabled, 
+        showVariants: showVariantsEnabled,
+        stateFilter: stateFilterSelect.value,
+        gameFilter: gameFilterSelect.value,
+        filters: [...filterModes.entries()], 
+        theme: currentTheme
+      }));
+    }
+
+    const loadedUiState = loadUiState();
+    const filterModes = new Map(loadedUiState.filters);
+    let viewMode = loadedUiState.viewMode;
+    let altLayoutEnabled = loadedUiState.altLayout;
+    let showVariantsEnabled = loadedUiState.showVariants;
+    let currentTheme = loadedUiState.theme;
+
+    function getSpriteUrl(apiId, isShiny) {
+      const base = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home";
+      return isShiny ? `${base}/shiny/${apiId}.png` : `${base}/${apiId}.png`;
+    }
+
+    function getCellState(id) {
+      const st = savedStates[id];
+      return st ? { base: Number(st.base ?? 0), extra: Boolean(st.extra ?? false) } : { base: 0, extra: false };
+    }
+
+    function saveCellState(id, state) {
+      savedStates[id] = state;
+      localStorage.setItem(CELL_STATE_KEY, JSON.stringify(savedStates));
+    }
+
+    function stateName(state) { return state.extra ? "Caught Shiny" : (state.base === 1 ? "Caught" : "Uncaught"); }
+    function stateClass(state) { return state.extra ? "state-extra" : (state.base === 1 ? "state-on" : "state-off"); }
+
+    function updateCellVisuals(record) {
+      const { dom, img, data, state } = record;
+      img.src = getSpriteUrl(data.apiId, state.extra);
+      dom.classList.toggle("active", state.base === 1);
+      dom.classList.toggle("extra", state.extra);
+      dom.classList.remove("state-off", "state-on", "state-extra");
+      dom.classList.add(stateClass(state));
+    }
+
+    function syncFilterButtonStyles() {
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.classList.remove("include", "exclude");
+        const m = filterModes.get(btn.dataset.filter);
+        if (m) btn.classList.add(m);
+      });
+    }
+
+    function hideTooltip() { cellTooltip.className = "cell-tooltip"; cellTooltip.setAttribute("aria-hidden", "true"); }
+    function positionTooltip(e) {
+      const pad = 14; let x = e.clientX + pad, y = e.clientY + pad;
+      const rect = cellTooltip.getBoundingClientRect();
+      if (x + rect.width > window.innerWidth) x = e.clientX - rect.width - pad;
+      if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - pad;
+      cellTooltip.style.left = `${Math.max(8, x)}px`; cellTooltip.style.top = `${Math.max(8, y)}px`;
+    }
+
+    function showTooltip(e, data, state) {
+      cellTooltip.textContent = `Dex #${data.id}\n${data.name}\nStatus: ${stateName(state)}`;
+      cellTooltip.className = `cell-tooltip visible ${stateClass(state)}`;
+      cellTooltip.setAttribute("aria-hidden", "false");
+      positionTooltip(e);
+    }
+
+    function updateClearButton() { clearSearch.classList.toggle("visible", searchBox.value.trim().length > 0); }
+    
+    function updateStatusDisplay(totalFilteredScope) { 
+      let caughtCount = 0;
+      let shinyCount = 0;
+
+      // When a game filter is active, only tally the stats for that specific game!
+      cellRegistry.forEach((rec, id) => {
+        const gf = gameFilterSelect.value;
+        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+
+        if (rec.data.isVariant && !showVariantsEnabled) return;
+        if (activeGameDex && !activeGameDex.includes(id)) return;
+        
+        if (rec.state.base === 1) caughtCount++;
+        if (rec.state.extra) shinyCount++;
+      });
+
+      statVisible.textContent = totalVisibleCells;
+      statCaught.textContent = `${caughtCount}/${totalFilteredScope}`;
+      statShiny.textContent = shinyCount;
+    }
+    
+    function updateScrollBorder() { gridContainer.classList.toggle("scrollable", gridContainer.scrollHeight > gridContainer.clientHeight); }
+
+    function layoutGrid() {
+      if (viewMode !== "grid") return;
+      const styles = getComputedStyle(gridContainer);
+      const avail = gridContainer.clientWidth - (parseFloat(styles.paddingLeft) || 0) - (parseFloat(styles.paddingRight) || 0);
+      const cols = Math.max(1, Math.floor((avail + GAP) / (TARGET_CELL_SIZE + GAP)));
+      const cellSize = Math.max(32, Math.floor((avail - GAP * (cols - 1)) / cols));
+      grid.style.setProperty("--cols", cols);
+      grid.style.setProperty("--cell-size", `${cellSize}px`);
+    }
+
+    function prefersDarkMode() { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; }
+    function getSystemTheme() { const dark = prefersDarkMode(); return { mode: "system", color1: dark ? "#000000" : "#ffffff", color2: dark ? "#000000" : "#ffffff" }; }
+
+    function applyTheme(theme, persist = true) {
+      const nextTheme = theme.mode === "custom" ? { mode: "custom", color1: theme.color1, color2: theme.color2 } : { mode: "system" };
+      currentTheme = nextTheme;
+      const res = nextTheme.mode === "system" ? getSystemTheme() : nextTheme;
+      if (res.color1 !== res.color2) {
+        document.body.style.background = `linear-gradient(135deg, ${res.color1}, ${res.color2})`;
+        document.body.style.backgroundSize = "250% 250%";
+        document.body.style.animation = "bgShift 30s ease-in-out infinite";
+      } else {
+        document.body.style.background = res.color1;
+        document.body.style.animation = "none";
+      }
+      bgColor1.value = res.color1; bgColor2.value = res.color2;
+      if (persist) saveUiState();
+    }
+
+    function applyAltLayout(enabled, persist = true) {
+      altLayoutEnabled = !!enabled;
+      page.classList.toggle("alt-layout", altLayoutEnabled);
+      altLayoutToggle.classList.toggle("active", altLayoutEnabled);
+      altLayoutToggle.setAttribute("aria-pressed", String(altLayoutEnabled));
+      if (persist) saveUiState();
+      layoutGrid();
+    }
+
+    function setViewMode(nextMode, persist = true) {
+      viewMode = nextMode === "list" ? "list" : "grid";
+      page.classList.toggle("grid-mode", viewMode === "grid");
+      page.classList.toggle("list-mode", viewMode === "list");
+      viewToggle.textContent = viewMode === "grid" ? "List View" : "Grid View";
+      if (persist) saveUiState();
+      layoutGrid();
+    }
+
+    function toggleVariants(persist = true) {
+      showVariantsEnabled = !showVariantsEnabled;
+      variantToggle.textContent = showVariantsEnabled ? "Variants: Shown" : "Variants: Hidden";
+      variantToggle.classList.toggle("active", showVariantsEnabled);
+      
+      if (persist) {
+        saveUiState();
+        applyFilters();
+      }
+    }
+
+    function initializeDOM() {
+      const fragment = document.createDocumentFragment();
+      allCells.forEach(data => {
+        const state = getCellState(data.id);
+        const cell = document.createElement("button");
+        cell.className = "cell"; 
+        cell.type = "button"; 
+        cell.dataset.cellId = data.id;
+        cell.dataset.isVariant = data.isVariant;
+
+        const img = document.createElement("img");
+        img.loading = "lazy"; 
+        img.alt = data.name;
+
+        const label = document.createElement("span");
+        label.className = "cell-label"; 
+        label.textContent = `#${data.id} ${data.name}`;
+
+        cell.appendChild(img); cell.appendChild(label); fragment.appendChild(cell);
+
+        const record = { dom: cell, img, data, state };
+        updateCellVisuals(record);
+        cellRegistry.set(data.id, record);
+      });
+      grid.appendChild(fragment);
+    }
+
+    function applyFilters() {
+      const q = searchBox.value.trim().toLowerCase();
+      const sf = stateFilterSelect.value;
+      const gf = gameFilterSelect.value;
+      
+      const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+      
+      let count = 0;
+      let totalFilteredScope = 0;
+
+      cellRegistry.forEach((rec, id) => {
+        // Variant Logic
+        if (rec.data.isVariant && !showVariantsEnabled) {
+          rec.dom.style.display = "none";
+          return;
+        }
+        
+        // Game Filtering Logic
+        if (activeGameDex && !activeGameDex.includes(id)) {
+          rec.dom.style.display = "none";
+          return;
+        }
+
+        totalFilteredScope++;
+
+        // State Filtering Logic
+        let stateMatch = true;
+        if (sf === "caught") stateMatch = rec.state.base === 1;
+        if (sf === "missing") stateMatch = rec.state.base === 0;
+        if (sf === "shiny") stateMatch = rec.state.extra === true;
+
+        const matchQ = !q || id.toLowerCase().includes(q) || rec.data.name.toLowerCase().includes(q);
+        
+        if (matchQ && stateMatch) {
+          rec.dom.style.display = ""; 
+          
+          // Apply custom order instantly via CSS Grid
+          if (activeGameDex) {
+            rec.dom.style.order = activeGameDex.indexOf(id);
+          } else {
+            rec.dom.style.order = ""; // Reset to National Dex layout
+          }
+          count++;
+        } else { 
+          rec.dom.style.display = "none"; 
+        }
+      });
+
+      totalVisibleCells = count;
+      updateStatusDisplay(totalFilteredScope); 
+      updateClearButton(); 
+      requestAnimationFrame(updateScrollBorder);
+    }
+
+    // Grid Event Delegation
+    grid.addEventListener("click", (e) => {
+      const el = e.target.closest(".cell"); if (!el) return;
+      const rec = cellRegistry.get(el.dataset.cellId); if (!rec) return;
+
+      if (rec.state.extra) { 
+        rec.state.extra = false; 
+        rec.state.base = 1; 
+      } else { 
+        rec.state.base = rec.state.base === 1 ? 0 : 1; 
+      }
+
+      saveCellState(rec.data.id, rec.state); 
+      updateCellVisuals(rec);
+      
+      if (cellTooltip.classList.contains("visible")) showTooltip(e, rec.data, rec.state);
+      
+      if (stateFilterSelect.value !== "all") { applyFilters(); } 
+      else { 
+        // Need to calculate current scope count for the header update
+        let scopeTotal = 0;
+        const gf = gameFilterSelect.value;
+        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+        cellRegistry.forEach((r, idx) => {
+          if (r.data.isVariant && !showVariantsEnabled) return;
+          if (activeGameDex && !activeGameDex.includes(idx)) return;
+          scopeTotal++;
+        });
+        updateStatusDisplay(scopeTotal); 
+      }
+    });
+
+    grid.addEventListener("contextmenu", (e) => {
+      const el = e.target.closest(".cell"); if (!el) return;
+      e.preventDefault(); const rec = cellRegistry.get(el.dataset.cellId); if (!rec) return;
+
+      rec.state.extra = !rec.state.extra;
+      if (rec.state.extra) { rec.state.base = 1; }
+      
+      saveCellState(rec.data.id, rec.state); 
+      updateCellVisuals(rec);
+      
+      if (cellTooltip.classList.contains("visible")) showTooltip(e, rec.data, rec.state);
+
+      if (stateFilterSelect.value !== "all") { applyFilters(); } 
+      else { 
+        let scopeTotal = 0;
+        const gf = gameFilterSelect.value;
+        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+        cellRegistry.forEach((r, idx) => {
+          if (r.data.isVariant && !showVariantsEnabled) return;
+          if (activeGameDex && !activeGameDex.includes(idx)) return;
+          scopeTotal++;
+        });
+        updateStatusDisplay(scopeTotal); 
+      }
+    });
+
+    grid.addEventListener("mouseover", (e) => { const el = e.target.closest(".cell"); if (el) showTooltip(e, cellRegistry.get(el.dataset.cellId).data, cellRegistry.get(el.dataset.cellId).state); });
+    grid.addEventListener("mousemove", (e) => { if (cellTooltip.classList.contains("visible")) positionTooltip(e); });
+    grid.addEventListener("mouseout", (e) => { const el = e.target.closest(".cell"); if (el && !el.contains(e.relatedTarget)) hideTooltip(); });
+
+    // Modals & inputs
+    function openSettings() { settingsOverlay.classList.add("open"); settingsOverlay.setAttribute("aria-hidden", "false"); }
+    function closeSettingsPanel() { settingsOverlay.classList.remove("open"); settingsOverlay.setAttribute("aria-hidden", "true"); }
+    settingsButton.addEventListener("click", openSettings);
+    closeSettings.addEventListener("click", closeSettingsPanel);
+    settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettingsPanel(); });
+    
+    // Global Keybinds (Escape and V)
+    document.addEventListener("keydown", (e) => { 
+      if (e.key === "Escape") { 
+        closeSettingsPanel(); 
+        hideTooltip(); 
+      }
+      
+      if (e.key.toLowerCase() === 'v' && e.target.tagName !== 'INPUT') { toggleVariants(); }
+    });
+
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => { const f = btn.dataset.filter; filterModes.get(f) === "include" ? filterModes.delete(f) : filterModes.set(f, "include"); syncFilterButtonStyles(); saveUiState(); applyFilters(); });
+      btn.addEventListener("contextmenu", (e) => { e.preventDefault(); const f = btn.dataset.filter; filterModes.get(f) === "exclude" ? filterModes.delete(f) : filterModes.set(f, "exclude"); syncFilterButtonStyles(); saveUiState(); applyFilters(); });
+    });
+
+    stateFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
+    gameFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
+    variantToggle.addEventListener("click", () => toggleVariants());
+    resetFilters.addEventListener("click", () => { 
+      filterModes.clear(); 
+      stateFilterSelect.value = "all";
+      gameFilterSelect.value = "all";
+      syncFilterButtonStyles(); 
+      saveUiState(); 
+      applyFilters(); 
+    });
+    
+    searchBox.addEventListener("input", () => { saveUiState(); applyFilters(); });
+    clearSearch.addEventListener("click", () => { searchBox.value = ""; saveUiState(); applyFilters(); searchBox.focus(); });
+    bgColor1.addEventListener("input", () => applyTheme({ mode: "custom", color1: bgColor1.value, color2: bgColor2.value }));
+    bgColor2.addEventListener("input", () => applyTheme({ mode: "custom", color1: bgColor1.value, color2: bgColor2.value }));
+    document.querySelectorAll(".preset-btn").forEach(b => b.addEventListener("click", () => applyTheme({ mode: "custom", color1: b.dataset.c1, color2: b.dataset.c2 })));
+    systemDefaultBtn.addEventListener("click", () => applyTheme({ mode: "system" }));
+    altLayoutToggle.addEventListener("click", () => applyAltLayout(!altLayoutEnabled));
+    viewToggle.addEventListener("click", () => setViewMode(viewMode === "grid" ? "list" : "grid"));
+
+    new ResizeObserver(() => { layoutGrid(); updateScrollBorder(); }).observe(gridContainer);
+    window.addEventListener("resize", () => { layoutGrid(); updateScrollBorder(); });
+    window.addEventListener("scroll", hideTooltip, { passive: true });
+
+    // ASYNC BOOTLOADER WITH SIBLING INJECTION
+    async function bootTracker() {
+      grid.style.display = "block";
+      grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; font-family:sans-serif; color:var(--muted);"><b>Connecting to PokéAPI...</b><br><small>Assembling National Dex (1 - 1025)</small></div>`;
+
+      try {
+        const res = await fetch("https://pokeapi.co/api/v2/pokemon?limit=1025");
+        if (!res.ok) throw new Error("Network response was not ok");
+        const masterJson = await res.json();
+
+        // 1. Build the base array of 1025
+        let baseCells = masterJson.results.map((item, index) => {
+          return {
+            id: String(index + 1),
+            apiId: String(index + 1),
+            name: item.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            isVariant: false
+          }
+        });
+
+        // 2. Perform Sibling Injection
+        allCells = [];
+        baseCells.forEach(baseCell => {
+          // Push the base pokemon first
+          allCells.push(baseCell);
+          
+          // Hunt for any variants that belong to this base pokemon
+          const variants = regionalVariants.filter(v => v.parentId === baseCell.id);
+          variants.forEach(variant => {
+            allCells.push({
+              id: variant.id,
+              apiId: variant.apiId,
+              name: variant.name,
+              isVariant: true
+            });
+          });
+        });
+
+        grid.style.display = ""; grid.innerHTML = "";
+
+        // UI Initialization
+        initializeDOM();
+        applyTheme(currentTheme, false);
+        setViewMode(viewMode, false);
+        applyAltLayout(altLayoutEnabled, false);
+        syncFilterButtonStyles();
+        
+        // Ensure UI elements match loaded state
+        variantToggle.textContent = showVariantsEnabled ? "Variants: Shown" : "Variants: Hidden";
+        variantToggle.classList.toggle("active", showVariantsEnabled);
+        stateFilterSelect.value = loadedUiState.stateFilter;
+        gameFilterSelect.value = loadedUiState.gameFilter;
+        searchBox.value = loadedUiState.search || "";
+        
+        applyFilters();
+
+      } catch (error) {
+        grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; color:#ef4444;"><b>Failed to load Pokémon database.</b><br><small>Check your internet connection and refresh the page.</small></div>`;
+      }
+    }
+
+    bootTracker();
+  </script>
+</body>
+</html>
