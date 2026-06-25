@@ -147,47 +147,6 @@
       align-items: center;
     }
 
-    .filter-btn,
-    .reset-btn {
-      border: 2px solid transparent;
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--button-bg);
-      color: var(--button-text);
-      border-color: var(--button-border);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-      user-select: none;
-    }
-
-    .filter-btn:hover,
-    .reset-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-      background: var(--button-hover);
-    }
-
-    .filter-btn.include {
-      color: #111827;
-      background:
-        linear-gradient(#f8fbff, #f8fbff) padding-box,
-        linear-gradient(135deg, #6366f1, #22c55e, #06b6d4) border-box;
-      border-color: transparent;
-      box-shadow: 0 8px 18px rgba(99, 102, 241, 0.18);
-    }
-
-    .filter-btn.exclude {
-      color: #7f1d1d;
-      background:
-        linear-gradient(#fff7f7, #fff7f7) padding-box,
-        linear-gradient(135deg, #ef4444, #f97316, #f43f5e) border-box;
-      border-color: transparent;
-      box-shadow: 0 8px 18px rgba(239, 68, 68, 0.16);
-    }
-
     .filter-select {
       border: 1px solid var(--button-border);
       border-radius: 999px;
@@ -211,7 +170,27 @@
       background-color: var(--button-hover);
     }
 
-    .reset-btn { margin-left: auto; }
+    .reset-btn {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--button-bg);
+      color: var(--button-text);
+      border-color: var(--button-border);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      user-select: none;
+      margin-left: auto;
+    }
+
+    .reset-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+      background: var(--button-hover);
+    }
 
     .search-row {
       display: flex;
@@ -283,8 +262,8 @@
     }
 
     .status-val { font-weight: 800; color: var(--text); }
-    .status-shiny { color: #d97706; } /* Orange/Gold for shiny */
-    .status-caught { color: #059669; } /* Green for caught */
+    .status-shiny { color: #d97706; }
+    .status-caught { color: #059669; }
 
     .grid-container {
       flex: 1 1 auto;
@@ -342,7 +321,7 @@
       transition: filter 0.3s ease, opacity 0.3s ease;
     }
 
-    /* THE MAGIC: Turns standard sprite into a sleek Slate-Gray silhouette */
+    /* SILHOUETTE EFFECT */
     .cell.state-off img {
       filter: brightness(0) invert(0.35);
       opacity: 0.45;
@@ -356,6 +335,57 @@
     .cell.state-off { border-color: rgba(148, 163, 184, 0.65); }
     .cell.state-on { border-color: rgba(134, 239, 172, 0.95); }
     .cell.state-extra { border-color: rgba(251, 191, 36, 0.95); }
+
+    /* BOTTOM TABS NAVIGATION */
+    .bottom-nav {
+      position: sticky;
+      bottom: 16px;
+      z-index: 30;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 8px 12px;
+      margin-top: 18px;
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      flex: 0 0 auto;
+    }
+    
+    .bottom-nav::-webkit-scrollbar { display: none; }
+    .bottom-nav { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .nav-tab {
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+    
+    .nav-tab:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text);
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      .nav-tab:hover { background: rgba(255, 255, 255, 0.1); }
+    }
+    
+    .nav-tab.active {
+      background: var(--button-bg);
+      color: var(--button-text);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      border: 1px solid var(--button-border);
+    }
 
     .cell-tooltip {
       position: fixed;
@@ -480,15 +510,8 @@
       <p class="hint">Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.</p>
 
       <div class="toolbar">
-        <select id="gameFilterSelect" class="filter-select">
-          <option value="all">Game: All (National Dex)</option>
-          <option value="swsh_base">Sword & Shield (Base)</option>
-          <option value="pla_base">Legends: Arceus</option>
-          <option value="sv_paldea">Scarlet & Violet (Paldea)</option>
-          <option value="sv_kitakami">Scarlet & Violet (Kitakami)</option>
-          <option value="sv_blueberry">Scarlet & Violet (Blueberry)</option>
-          <option value="za_base">Legends: Z-A (Base)</option>
-          <option value="za_dlc">Legends: Z-A (DLC)</option>
+        <select id="subDexFilterSelect" class="filter-select" style="display: none;">
+          <option value="all">Region: All</option>
         </select>
         
         <select id="stateFilterSelect" class="filter-select">
@@ -509,7 +532,7 @@
         </div>
         <div id="statusLine" class="status-line">
           <div class="status-group">Showing: <span id="statVisible" class="status-val">0</span></div>
-          <div class="status-group">Caught: <span id="statCaught" class="status-val status-caught">0/1025</span></div>
+          <div class="status-group">Caught: <span id="statCaught" class="status-val status-caught">0</span></div>
           <div class="status-group">Shiny: <span id="statShiny" class="status-val status-shiny">0</span></div>
         </div>
       </div>
@@ -517,6 +540,15 @@
 
     <div class="grid-container" id="gridContainer">
       <div class="grid" id="grid"></div>
+    </div>
+    
+    <!-- BOTTOM TABS NAVIGATION -->
+    <div class="bottom-nav">
+       <button class="nav-tab active" data-game="national">National Dex</button>
+       <button class="nav-tab" data-game="za">Legends: Z-A</button>
+       <button class="nav-tab" data-game="sv">Scarlet & Violet</button>
+       <button class="nav-tab" data-game="pla">Legends: Arceus</button>
+       <button class="nav-tab" data-game="swsh">Sword & Shield</button>
     </div>
   </div>
 
@@ -569,7 +601,7 @@
     const variantToggle = document.getElementById("variantToggle");
     const resetFilters = document.getElementById("resetFilters");
     const stateFilterSelect = document.getElementById("stateFilterSelect");
-    const gameFilterSelect = document.getElementById("gameFilterSelect");
+    const subDexFilterSelect = document.getElementById("subDexFilterSelect");
 
     const settingsButton = document.getElementById("settingsButton");
     const settingsOverlay = document.getElementById("settingsOverlay");
@@ -667,9 +699,33 @@
       "sv_blueberry": ["84", "85", "102", "103", "103-A", "111", "112", "464", "48", "49", "239", "125", "466", "240", "126", "467", "440", "113", "242", "123", "212", "900", "128", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "37-A", "38", "38-A", "60", "61", "62", "186", "129", "130", "163", "164", "190", "424", "214", "72", "73", "116", "117", "230", "235", "546", "547", "764", "287", "288", "289", "43", "44", "45", "182", "50", "50-A", "51", "51-A", "88", "88-A", "89", "89-A", "335", "336", "739", "740", "741", "79", "79-G", "80", "80-G", "199", "199-G", "170", "171", "686", "687", "370", "456", "457", "594", "324", "661", "662", "663", "751", "752", "236", "106", "107", "237", "74", "74-A", "75", "75-A", "76", "76-A", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "638", "639", "640", "647", "311", "312", "207", "472", "622", "623", "322", "323", "629", "630", "137", "233", "474", "595", "596", "962", "109", "110", "374", "375", "376", "610", "611", "612", "86", "87", "131", "211", "904", "577", "578", "579", "209", "210", "613", "614", "27", "27-A", "28", "28-A", "459", "460", "884", "1018", "1019", "1", "2", "3", "4", "5", "6", "7", "8", "9", "152", "153", "154", "155", "156", "157", "158", "159", "160", "252", "253", "254", "255", "256", "257", "258", "259", "260", "387", "388", "389", "390", "391", "392", "393", "394", "395", "495", "496", "497", "498", "499", "500", "501", "502", "503", "650", "651", "652", "653", "654", "655", "656", "657", "658", "722", "723", "724", "725", "726", "727", "728", "729", "730", "810", "811", "812", "813", "814", "815", "816", "817", "818", "1020", "1021", "1023", "1022", "1024", "1009", "1010", "1025"]
     };
 
+    // --- GAME STRUCTURE FOR TOP DROPDOWN ---
+    const gameRegions = {
+      "national": [{ id: "all", name: "Region: All (National)" }],
+      "za": [
+        { id: "all", name: "Region: All Z-A" },
+        { id: "za_base", name: "Base Game (Lumiose)" },
+        { id: "za_dlc", name: "DLC (Hyperspace)" }
+      ],
+      "sv": [
+        { id: "all", name: "Region: All Scarlet/Violet" },
+        { id: "sv_paldea", name: "Base Game (Paldea)" },
+        { id: "sv_kitakami", name: "DLC 1 (Kitakami)" },
+        { id: "sv_blueberry", name: "DLC 2 (Blueberry)" }
+      ],
+      "pla": [
+        { id: "all", name: "Region: All Legends: Arceus" },
+        { id: "pla_base", name: "Base Game (Hisui)" }
+      ],
+      "swsh": [
+        { id: "all", name: "Region: All Sword/Shield" },
+        { id: "swsh_base", name: "Base Game (Galar)" }
+      ]
+    };
+
     let allCells = [];
     const cellRegistry = new Map();
-    const savedStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
+    let savedStates = {}; // Will be dynamically loaded based on the current tab
 
     const defaultUiState = { 
       search: "", 
@@ -677,7 +733,8 @@
       altLayout: false, 
       showVariants: false, 
       stateFilter: "all", 
-      gameFilter: "all", // NEW STATE
+      gameFilter: "national", 
+      subDexFilter: "all", 
       filters: [], 
       theme: { mode: "system" } 
     };
@@ -693,7 +750,8 @@
           altLayout: Boolean(p.altLayout),
           showVariants: Boolean(p.showVariants),
           stateFilter: p.stateFilter || "all",
-          gameFilter: p.gameFilter || "all",
+          gameFilter: p.gameFilter || "national",
+          subDexFilter: p.subDexFilter || "all", 
           filters: Array.isArray(p.filters) ? p.filters : [],
           theme: p.theme && typeof p.theme === "object" ? p.theme : { mode: "system" }
         };
@@ -707,7 +765,8 @@
         altLayout: altLayoutEnabled, 
         showVariants: showVariantsEnabled,
         stateFilter: stateFilterSelect.value,
-        gameFilter: gameFilterSelect.value,
+        gameFilter: currentGameTab,
+        subDexFilter: subDexFilterSelect.value, 
         filters: [...filterModes.entries()], 
         theme: currentTheme
       }));
@@ -718,7 +777,17 @@
     let viewMode = loadedUiState.viewMode;
     let altLayoutEnabled = loadedUiState.altLayout;
     let showVariantsEnabled = loadedUiState.showVariants;
+    let currentGameTab = loadedUiState.gameFilter;
     let currentTheme = loadedUiState.theme;
+
+    // --- NEW: Storage logic dynamically tied to the active Game Tab ---
+    function getStorageKey() {
+      return currentGameTab === "national" ? CELL_STATE_KEY : `${CELL_STATE_KEY}_${currentGameTab}`;
+    }
+
+    function loadGameStates() {
+      savedStates = JSON.parse(localStorage.getItem(getStorageKey()) || "{}");
+    }
 
     function getSpriteUrl(apiId, isShiny) {
       const base = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home";
@@ -732,7 +801,7 @@
 
     function saveCellState(id, state) {
       savedStates[id] = state;
-      localStorage.setItem(CELL_STATE_KEY, JSON.stringify(savedStates));
+      localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
     }
 
     function stateName(state) { return state.extra ? "Caught Shiny" : (state.base === 1 ? "Caught" : "Uncaught"); }
@@ -745,14 +814,6 @@
       dom.classList.toggle("extra", state.extra);
       dom.classList.remove("state-off", "state-on", "state-extra");
       dom.classList.add(stateClass(state));
-    }
-
-    function syncFilterButtonStyles() {
-      document.querySelectorAll(".filter-btn").forEach((btn) => {
-        btn.classList.remove("include", "exclude");
-        const m = filterModes.get(btn.dataset.filter);
-        if (m) btn.classList.add(m);
-      });
     }
 
     function hideTooltip() { cellTooltip.className = "cell-tooltip"; cellTooltip.setAttribute("aria-hidden", "true"); }
@@ -777,11 +838,9 @@
       let caughtCount = 0;
       let shinyCount = 0;
 
-      // When a game filter is active, only tally the stats for that specific game!
-      cellRegistry.forEach((rec, id) => {
-        const gf = gameFilterSelect.value;
-        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+      const activeGameDex = getActiveGameDex();
 
+      cellRegistry.forEach((rec, id) => {
         if (rec.data.isVariant && !showVariantsEnabled) return;
         if (activeGameDex && !activeGameDex.includes(id)) return;
         
@@ -790,7 +849,7 @@
       });
 
       statVisible.textContent = totalVisibleCells;
-      statCaught.textContent = `${caughtCount}/${totalFilteredScope}`;
+      statCaught.textContent = `${caughtCount} / ${totalFilteredScope}`;
       statShiny.textContent = shinyCount;
     }
     
@@ -881,24 +940,45 @@
       grid.appendChild(fragment);
     }
 
+    function getActiveGameDex() {
+      if (currentGameTab === "national") return null;
+      
+      const subDex = subDexFilterSelect.value;
+      if (subDex !== "all") {
+        return gameDexes[subDex];
+      } else {
+        // Combine all sub-dexes for the current game tab to show "All"
+        const regions = gameRegions[currentGameTab].filter(r => r.id !== "all").map(r => r.id);
+        let combined = [];
+        let seen = new Set();
+        regions.forEach(reg => {
+          if (gameDexes[reg]) {
+            gameDexes[reg].forEach(id => {
+              if (!seen.has(id)) {
+                seen.add(id);
+                combined.push(id);
+              }
+            });
+          }
+        });
+        return combined;
+      }
+    }
+
     function applyFilters() {
       const q = searchBox.value.trim().toLowerCase();
       const sf = stateFilterSelect.value;
-      const gf = gameFilterSelect.value;
-      
-      const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+      const activeGameDex = getActiveGameDex();
       
       let count = 0;
       let totalFilteredScope = 0;
 
       cellRegistry.forEach((rec, id) => {
-        // Variant Logic
         if (rec.data.isVariant && !showVariantsEnabled) {
           rec.dom.style.display = "none";
           return;
         }
         
-        // Game Filtering Logic
         if (activeGameDex && !activeGameDex.includes(id)) {
           rec.dom.style.display = "none";
           return;
@@ -906,7 +986,6 @@
 
         totalFilteredScope++;
 
-        // State Filtering Logic
         let stateMatch = true;
         if (sf === "caught") stateMatch = rec.state.base === 1;
         if (sf === "missing") stateMatch = rec.state.base === 0;
@@ -917,11 +996,10 @@
         if (matchQ && stateMatch) {
           rec.dom.style.display = ""; 
           
-          // Apply custom order instantly via CSS Grid
           if (activeGameDex) {
             rec.dom.style.order = activeGameDex.indexOf(id);
           } else {
-            rec.dom.style.order = ""; // Reset to National Dex layout
+            rec.dom.style.order = "";
           }
           count++;
         } else { 
@@ -954,10 +1032,8 @@
       
       if (stateFilterSelect.value !== "all") { applyFilters(); } 
       else { 
-        // Need to calculate current scope count for the header update
         let scopeTotal = 0;
-        const gf = gameFilterSelect.value;
-        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+        const activeGameDex = getActiveGameDex();
         cellRegistry.forEach((r, idx) => {
           if (r.data.isVariant && !showVariantsEnabled) return;
           if (activeGameDex && !activeGameDex.includes(idx)) return;
@@ -982,8 +1058,7 @@
       if (stateFilterSelect.value !== "all") { applyFilters(); } 
       else { 
         let scopeTotal = 0;
-        const gf = gameFilterSelect.value;
-        const activeGameDex = gf !== "all" ? gameDexes[gf] : null;
+        const activeGameDex = getActiveGameDex();
         cellRegistry.forEach((r, idx) => {
           if (r.data.isVariant && !showVariantsEnabled) return;
           if (activeGameDex && !activeGameDex.includes(idx)) return;
@@ -1010,23 +1085,44 @@
         closeSettingsPanel(); 
         hideTooltip(); 
       }
-      
       if (e.key.toLowerCase() === 'v' && e.target.tagName !== 'INPUT') { toggleVariants(); }
     });
 
-    document.querySelectorAll(".filter-btn").forEach((btn) => {
-      btn.addEventListener("click", () => { const f = btn.dataset.filter; filterModes.get(f) === "include" ? filterModes.delete(f) : filterModes.set(f, "include"); syncFilterButtonStyles(); saveUiState(); applyFilters(); });
-      btn.addEventListener("contextmenu", (e) => { e.preventDefault(); const f = btn.dataset.filter; filterModes.get(f) === "exclude" ? filterModes.delete(f) : filterModes.set(f, "exclude"); syncFilterButtonStyles(); saveUiState(); applyFilters(); });
+    // BOTTOM NAVIGATION TAB SWITCHING
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        currentGameTab = tab.dataset.game;
+        
+        // Update Top Dropdown
+        const regions = gameRegions[currentGameTab];
+        subDexFilterSelect.innerHTML = regions.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+        subDexFilterSelect.value = "all"; // Reset to 'all regions' on tab switch
+        subDexFilterSelect.style.display = currentGameTab === "national" ? "none" : "";
+
+        // UI Updates
+        document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.game === currentGameTab));
+        
+        // Load the states specifically for the clicked tab
+        loadGameStates();
+
+        // Visually update the entire DOM memory with the newly loaded states
+        cellRegistry.forEach((rec, id) => {
+          rec.state = getCellState(id);
+          updateCellVisuals(rec);
+        });
+
+        // Save current tab preference and reorganize the grid
+        saveUiState();
+        applyFilters();
+      });
     });
 
     stateFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
-    gameFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
+    subDexFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
     variantToggle.addEventListener("click", () => toggleVariants());
     resetFilters.addEventListener("click", () => { 
-      filterModes.clear(); 
       stateFilterSelect.value = "all";
-      gameFilterSelect.value = "all";
-      syncFilterButtonStyles(); 
+      subDexFilterSelect.value = "all";
       saveUiState(); 
       applyFilters(); 
     });
@@ -1044,7 +1140,7 @@
     window.addEventListener("resize", () => { layoutGrid(); updateScrollBorder(); });
     window.addEventListener("scroll", hideTooltip, { passive: true });
 
-    // ASYNC BOOTLOADER WITH SIBLING INJECTION
+    // ASYNC BOOTLOADER
     async function bootTracker() {
       grid.style.display = "block";
       grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; font-family:sans-serif; color:var(--muted);"><b>Connecting to PokéAPI...</b><br><small>Assembling National Dex (1 - 1025)</small></div>`;
@@ -1054,7 +1150,7 @@
         if (!res.ok) throw new Error("Network response was not ok");
         const masterJson = await res.json();
 
-        // 1. Build the base array of 1025
+        // Build base
         let baseCells = masterJson.results.map((item, index) => {
           return {
             id: String(index + 1),
@@ -1064,13 +1160,10 @@
           }
         });
 
-        // 2. Perform Sibling Injection
+        // Inject variants
         allCells = [];
         baseCells.forEach(baseCell => {
-          // Push the base pokemon first
           allCells.push(baseCell);
-          
-          // Hunt for any variants that belong to this base pokemon
           const variants = regionalVariants.filter(v => v.parentId === baseCell.id);
           variants.forEach(variant => {
             allCells.push({
@@ -1084,18 +1177,30 @@
 
         grid.style.display = ""; grid.innerHTML = "";
 
+        // Load correct states for the active tab before painting the DOM
+        loadGameStates();
+
         // UI Initialization
         initializeDOM();
         applyTheme(currentTheme, false);
         setViewMode(viewMode, false);
         applyAltLayout(altLayoutEnabled, false);
-        syncFilterButtonStyles();
         
+        // Setup Sub Dex Filter Dropdown
+        const regions = gameRegions[currentGameTab];
+        subDexFilterSelect.innerHTML = regions.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+        if (regions.find(r => r.id === loadedUiState.subDexFilter)) {
+          subDexFilterSelect.value = loadedUiState.subDexFilter;
+        } else {
+          subDexFilterSelect.value = "all";
+        }
+        subDexFilterSelect.style.display = currentGameTab === "national" ? "none" : "";
+
         // Ensure UI elements match loaded state
         variantToggle.textContent = showVariantsEnabled ? "Variants: Shown" : "Variants: Hidden";
         variantToggle.classList.toggle("active", showVariantsEnabled);
         stateFilterSelect.value = loadedUiState.stateFilter;
-        gameFilterSelect.value = loadedUiState.gameFilter;
+        document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.game === currentGameTab));
         searchBox.value = loadedUiState.search || "";
         
         applyFilters();
