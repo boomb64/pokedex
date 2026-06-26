@@ -103,7 +103,8 @@
 
     .view-toggle,
     .settings-button,
-    .variant-toggle {
+    .variant-toggle,
+    .action-btn {
       border: 1px solid var(--button-border);
       border-radius: 999px;
       padding: 10px 14px;
@@ -119,7 +120,8 @@
 
     .view-toggle:hover,
     .settings-button:hover,
-    .variant-toggle:hover {
+    .variant-toggle:hover,
+    .action-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
       border-color: #aab3c5;
@@ -336,6 +338,12 @@
     .cell.state-on { border-color: rgba(134, 239, 172, 0.95); }
     .cell.state-extra { border-color: rgba(251, 191, 36, 0.95); }
 
+    /* GLOW EFFECT SETTINGS */
+    .page.glow-enabled .cell.state-on { box-shadow: 0 0 12px rgba(34, 197, 94, 0.4); border-color: rgba(34, 197, 94, 0.7); }
+    .page.glow-enabled .cell.state-extra { box-shadow: 0 0 12px rgba(245, 158, 11, 0.5); border-color: rgba(245, 158, 11, 0.8); }
+    .page.glow-enabled .cell.state-on:hover { box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08), 0 0 16px rgba(34, 197, 94, 0.6); }
+    .page.glow-enabled .cell.state-extra:hover { box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08), 0 0 16px rgba(245, 158, 11, 0.7); }
+
     /* BOTTOM TABS NAVIGATION */
     .bottom-nav {
       position: sticky;
@@ -510,6 +518,7 @@
       <p class="hint">Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.</p>
 
       <div class="toolbar">
+        <button id="markVisibleBtn" class="action-btn" type="button" title="Left Click = Caught, Right Click = Shiny">Mark Visible</button>
         <select id="subDexFilterSelect" class="filter-select" style="display: none;">
           <option value="all">Region: All</option>
         </select>
@@ -527,7 +536,7 @@
 
       <div class="search-row">
         <div class="search-wrap">
-          <input type="text" id="searchBox" placeholder="Search by Dex # or Pokémon name...">
+          <input type="text" id="searchBox" placeholder="Search by Dex #, Name, or Range (e.g., 1-151)...">
           <button id="clearSearch" class="clear-search" type="button" aria-label="Clear search">×</button>
         </div>
         <div id="statusLine" class="status-line">
@@ -571,6 +580,11 @@
         <span class="layout-option-desc">Image on top, label below</span>
       </button>
 
+      <button id="glowToggle" class="layout-option" type="button" aria-pressed="false">
+        <span class="layout-option-title">Status Glow</span>
+        <span class="layout-option-desc">Add a colored glow to Caught and Shiny borders</span>
+      </button>
+
       <p class="preset-title">Presets</p>
       <div class="preset-grid">
         <button class="preset-btn" type="button" data-c1="#0f172a" data-c2="#38bdf8">Ocean</button>
@@ -599,6 +613,7 @@
     const gridContainer = document.getElementById("gridContainer");
     const viewToggle = document.getElementById("viewToggle");
     const variantToggle = document.getElementById("variantToggle");
+    const markVisibleBtn = document.getElementById("markVisibleBtn");
     const resetFilters = document.getElementById("resetFilters");
     const stateFilterSelect = document.getElementById("stateFilterSelect");
     const subDexFilterSelect = document.getElementById("subDexFilterSelect");
@@ -610,6 +625,7 @@
     const bgColor1 = document.getElementById("bgColor1");
     const bgColor2 = document.getElementById("bgColor2");
     const altLayoutToggle = document.getElementById("altLayoutToggle");
+    const glowToggle = document.getElementById("glowToggle");
     const cellTooltip = document.getElementById("cellTooltip");
 
     let totalVisibleCells = 0;
@@ -694,9 +710,7 @@
       "pla_base": ["722", "723", "724-H", "155", "156", "157-H", "501", "502", "503-H", "399", "400", "396", "397", "398", "403", "404", "405", "265", "266", "267", "268", "269", "77", "78", "133", "134", "135", "136", "196", "197", "470", "471", "700", "41", "42", "169", "425", "426", "401", "402", "418", "419", "412", "413", "414", "74", "75", "76", "234", "899", "446", "143", "46", "47", "172", "25", "26", "63", "64", "65", "390", "391", "392", "427", "428", "420", "421", "54", "55", "415", "416", "123", "900", "212", "214", "439", "122", "190", "424", "129", "130", "422", "423", "211-H", "904", "440", "113", "242", "406", "315", "407", "455", "548", "549-H", "114", "465", "339", "340", "453", "454", "280", "281", "282", "475", "193", "469", "449", "450", "417", "434", "435", "216", "217", "901", "704", "705-H", "706-H", "95", "208", "111", "112", "464", "438", "185", "108", "463", "175", "176", "468", "387", "388", "389", "137", "233", "474", "92", "93", "94", "442", "198", "430", "201", "363", "364", "365", "223", "224", "451", "452", "58-H", "59-H", "431", "432", "66", "67", "68", "441", "355", "356", "477", "393", "394", "395", "458", "226", "550", "902", "37", "37-A", "38", "38-A", "72", "73", "456", "457", "240", "126", "467", "81", "82", "462", "436", "437", "239", "125", "466", "207", "472", "443", "444", "445", "299", "476", "100-H", "101-H", "479", "433", "358", "200", "429", "173", "35", "36", "215-H", "215", "903", "461", "361", "362", "478", "408", "409", "410", "411", "220", "221", "473", "712", "713-H", "459", "460", "570-H", "571-H", "627", "628-H", "447", "448", "480", "481", "482", "485", "486", "488", "641", "642", "645", "905", "483", "484", "487", "493", "489", "490", "492", "491"],
       "za_base": ["152", "153", "154", "498", "499", "500", "158", "159", "160", "661", "662", "663", "659", "660", "664", "665", "666", "13", "14", "15", "16", "17", "18", "179", "180", "181", "504", "505", "406", "315", "407", "129", "130", "688", "689", "120", "121", "669", "670", "671", "672", "673", "677", "678", "667", "668", "674", "675", "568", "569", "702", "172", "25", "26", "26-A", "173", "35", "36", "167", "168", "23", "24", "63", "64", "65", "92", "93", "94", "543", "544", "545", "679", "680", "681", "69", "70", "71", "511", "512", "513", "514", "515", "516", "307", "308", "309", "310", "280", "281", "282", "475", "228", "229", "333", "334", "531", "682", "683", "684", "685", "133", "134", "135", "136", "196", "197", "470", "471", "700", "427", "428", "353", "354", "582", "583", "584", "322", "323", "449", "450", "529", "530", "551", "552", "553", "123", "212", "127", "214", "1", "2", "3", "4", "5", "6", "7", "8", "9", "618", "618-G", "676", "686", "687", "690", "691", "692", "693", "694", "695", "696", "697", "698", "699", "701", "703", "704", "705", "706", "707", "708", "709", "710", "711", "712", "713", "714", "715", "716", "717", "718", "719", "225", "227", "302", "303", "304", "305", "306", "318", "319", "359", "361", "362", "478", "371", "372", "373", "374", "375", "376", "443", "444", "445", "447", "448", "459", "460", "559", "560", "587", "602", "603", "604", "607", "608", "609", "650", "651", "652", "653", "654", "655", "656", "657", "658", "870"],
       "za_dlc": ["56", "57", "979", "52", "52-A", "52-G", "53", "53-A", "863", "83", "83-G", "865", "104", "105", "105-A", "137", "233", "474", "951", "952", "957", "958", "959", "967", "969", "970", "971", "972", "973", "977", "978", "352", "615", "622", "623", "211", "211-H", "904", "252", "253", "254", "255", "256", "257", "258", "259", "260", "349", "350", "358", "433", "39", "40", "174", "396", "397", "398", "325", "326", "931", "932", "933", "934", "316", "317", "41", "42", "169", "935", "936", "937", "942", "943", "944", "945", "122", "122-G", "439", "866", "590", "591", "485", "721", "638", "639", "640", "647", "648", "649", "720", "801", "802", "807", "808", "809", "821", "822", "823", "827", "828", "848", "849", "852", "853", "867", "876", "877", "900", "926", "927", "996", "997", "998", "999", "1000", "739", "740", "767", "768", "769", "770", "778", "780", "705-H", "706-H", "713-H", "479", "380", "381", "382", "383", "384", "491", "509", "510", "517", "518", "538", "539", "562", "562-G", "563"],
-      "sv_paldea": ["906", "907", "908", "909", "910", "911", "912", "913", "914", "915", "916", "917", "918", "919", "920", "187", "188", "189", "661", "662", "663", "921", "922", "923", "228", "229", "734", "735", "819", "820", "191", "192", "401", "402", "664", "665", "666", "415", "416", "821", "822", "823", "440", "113", "242", "298", "183", "184", "283", "284", "418", "419", "194-P", "980", "54", "55", "833", "834", "174", "39", "40", "280", "281", "282", "475", "96", "97", "92", "93", "94", "924", "925", "172", "25", "26", "926", "927", "287", "288", "289", "761", "762", "763", "928", "929", "930", "438", "185", "744", "745", "837", "838", "839", "403", "404", "405", "396", "397", "398", "741", "179", "180", "181", "548", "549", "285", "286", "840", "841", "842", "325", "326", "931", "200", "429", "296", "297", "739", "740", "757", "758", "231", "232", "878", "879", "443", "444", "445", "932", "933", "934", "278", "279", "129", "130", "846", "847", "550", "316", "317", "52", "53", "425", "426", "669", "670", "671", "50", "51", "324", "322", "323", "436", "437", "610", "611", "612", "56", "57", "979", "307", "308", "447", "448", "935", "936", "937", "339", "340", "938", "939", "704", "705", "706", "453", "454", "940", "941", "133", "134", "135", "136", "196", "197", "470", "471", "700", "206", "982", "585", "586", "203", "981", "88", "89", "942", "943", "848", "849", "702", "417", "944", "945", "234", "590", "591", "100", "101", "81", "82", "462", "132", "58", "59", "216", "217", "335", "336", "333", "334", "672", "673", "128-P1", "128-P2", "128-P3", "667", "668", "434", "435", "570", "571", "215", "461", "198", "430", "574", "575", "576", "854", "855", "778", "707", "876", "946", "947", "948", "949", "357", "753", "754", "950", "951", "952", "331", "332", "953", "954", "48", "49", "204", "205", "123", "212", "214", "955", "956", "449", "450", "551", "552", "553", "843", "844", "749", "750", "636", "637", "371", "372", "373", "957", "958", "959", "856", "857", "858", "859", "860", "861", "960", "961", "962", "963", "964", "965", "966", "967", "968", "302", "353", "354", "870", "701", "442", "714", "715", "885", "886", "887", "969", "970", "479", "971", "972", "765", "766", "775", "246", "247", "248", "874", "875", "871", "769", "770", "79", "80", "199", "422", "423", "90", "91", "211", "370", "456", "457", "779", "594", "690", "691", "692", "693", "602", "603", "604", "747", "748", "973", "147", "148", "149", "872", "873", "459", "460", "225", "613", "614", "361", "362", "478", "615", "974", "975", "712", "713", "627", "628", "624", "625", "983", "633", "634", "635", "976", "977", "978", "984", "985", "986", "987", "988", "989", "990", "991", "992", "993", "994", "995", "996", "997", "998", "999", "1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"],
-      "sv_kitakami": ["167", "168", "193", "469", "194", "195", "261", "262", "313", "314", "341", "342", "540", "541", "542", "742", "743", "23", "24", "172", "25", "26", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "38", "60", "61", "62", "186", "440", "113", "242", "163", "164", "190", "424", "220", "221", "473", "234", "273", "274", "275", "833", "834", "174", "39", "40", "280", "281", "282", "475", "548", "549", "708", "709", "744", "745", "819", "820", "948", "949", "1012", "1013", "58", "59", "74", "75", "76", "438", "185", "532", "533", "534", "714", "715", "846", "847", "856", "857", "858", "877", "968", "924", "925", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "741", "27", "28", "92", "93", "94", "207", "472", "228", "229", "325", "326", "629", "630", "749", "750", "782", "783", "784", "962", "109", "110", "619", "620", "355", "356", "477", "433", "358", "218", "219", "607", "608", "609", "283", "284", "173", "35", "36", "436", "437", "969", "970", "349", "350", "206", "982", "339", "340", "443", "444", "445", "703", "757", "758", "215", "461", "361", "362", "478", "602", "603", "604", "704", "705", "706", "580", "581", "845", "624", "625", "983", "778", "859", "860", "861", "876", "88", "89", "942", "943", "1014", "1015", "1016", "1017"],
-      "sv_blueberry": ["84", "85", "102", "103", "103-A", "111", "112", "464", "48", "49", "239", "125", "466", "240", "126", "467", "440", "113", "242", "123", "212", "900", "128", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "37-A", "38", "38-A", "60", "61", "62", "186", "129", "130", "163", "164", "190", "424", "214", "72", "73", "116", "117", "230", "235", "546", "547", "764", "287", "288", "289", "43", "44", "45", "182", "50", "50-A", "51", "51-A", "88", "88-A", "89", "89-A", "335", "336", "739", "740", "741", "79", "79-G", "80", "80-G", "199", "199-G", "170", "171", "686", "687", "370", "456", "457", "594", "324", "661", "662", "663", "751", "752", "236", "106", "107", "237", "74", "74-A", "75", "75-A", "76", "76-A", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "638", "639", "640", "647", "311", "312", "207", "472", "622", "623", "322", "323", "629", "630", "137", "233", "474", "595", "596", "962", "109", "110", "374", "375", "376", "610", "611", "612", "86", "87", "131", "211", "904", "577", "578", "579", "209", "210", "613", "614", "27", "27-A", "28", "28-A", "459", "460", "884", "1018", "1019", "1", "2", "3", "4", "5", "6", "7", "8", "9", "152", "153", "154", "155", "156", "157", "158", "159", "160", "252", "253", "254", "255", "256", "257", "258", "259", "260", "387", "388", "389", "390", "391", "392", "393", "394", "395", "495", "496", "497", "498", "499", "500", "501", "502", "503", "650", "651", "652", "653", "654", "655", "656", "657", "658", "722", "723", "724", "725", "726", "727", "728", "729", "730", "810", "811", "812", "813", "814", "815", "816", "817", "818", "1020", "1021", "1023", "1022", "1024", "1009", "1010", "1025"]
+      "sv_paldea": ["906", "907", "908", "909", "910", "911", "912", "913", "914", "915", "916", "917", "918", "919", "920", "187", "188", "189", "661", "662", "663", "921", "922", "923", "228", "229", "734", "735", "819", "820", "191", "192", "401", "402", "664", "665", "666", "415", "416", "821", "822", "823", "440", "113", "242", "298", "183", "184", "283", "284", "418", "419", "194-P", "980", "54", "55", "833", "834", "174", "39", "40", "280", "281", "282", "475", "96", "97", "92", "93", "94", "924", "925", "172", "25", "26", "926", "927", "287", "288", "289", "761", "762", "763", "928", "929", "930", "438", "185", "744", "745", "837", "838", "839", "403", "404", "405", "396", "397", "398", "741", "179", "180", "181", "548", "549", "285", "286", "840", "841", "842", "325", "326", "931", "200", "429", "296", "297", "739", "740", "757", "758", "231", "232", "878", "879", "443", "444", "445", "932", "933", "934", "278", "279", "129", "130", "846", "847", "550", "316", "317", "52", "53", "425", "426", "669", "670", "671", "50", "51", "324", "322", "323", "436", "437", "610", "611", "612", "56", "57", "979", "307", "308", "447", "448", "935", "936", "937", "339", "340", "938", "939", "704", "705", "706", "453", "454", "940", "941", "133", "134", "135", "136", "196", "197", "470", "471", "700", "206", "982", "585", "586", "203", "981", "88", "89", "942", "943", "848", "849", "702", "417", "944", "945", "234", "590", "591", "100", "101", "81", "82", "462", "132", "58", "59", "216", "217", "335", "336", "333", "334", "672", "673", "128-P1", "128-P2", "128-P3", "667", "668", "434", "435", "570", "571", "215", "461", "198", "430", "574", "575", "576", "854", "855", "778", "707", "876", "946", "947", "948", "949", "357", "753", "754", "950", "951", "952", "331", "332", "953", "954", "48", "49", "204", "205", "123", "212", "214", "955", "956", "449", "450", "551", "552", "553", "843", "844", "749", "750", "636", "637", "371", "372", "373", "957", "958", "959", "856", "857", "858", "859", "860", "861", "960", "961", "962", "963", "964", "965", "966", "967", "968", "302", "353", "354", "870", "701", "442", "714", "715", "885", "886", "887", "969", "970", "479", "971", "972", "765", "766", "775", "246", "247", "248", "874", "875", "871", "769", "770", "79", "80", "199", "422", "423", "90", "91", "211", "370", "456", "457", "779", "594", "690", "691", "692", "693", "602", "603", "604", "747", "748", "973", "147", "148", "149", "872", "873", "459", "460", "225", "613", "614", "361", "362", "478", "615", "974", "975", "712", "713", "627", "628", "624", "625", "983", "633", "634", "635", "976", "977", "978", "984", "985", "986", "987", "988", "989", "990", "991", "992", "993", "994", "995", "996", "997", "998", "999", "1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"]
     };
 
     // --- GAME STRUCTURE FOR TOP DROPDOWN ---
@@ -734,7 +748,8 @@
       showVariants: false, 
       stateFilter: "all", 
       gameFilter: "national", 
-      subDexFilter: "all", 
+      subDexFilter: "all",
+      glowEnabled: false, 
       filters: [], 
       theme: { mode: "system" } 
     };
@@ -752,6 +767,7 @@
           stateFilter: p.stateFilter || "all",
           gameFilter: p.gameFilter || "national",
           subDexFilter: p.subDexFilter || "all", 
+          glowEnabled: Boolean(p.glowEnabled),
           filters: Array.isArray(p.filters) ? p.filters : [],
           theme: p.theme && typeof p.theme === "object" ? p.theme : { mode: "system" }
         };
@@ -767,6 +783,7 @@
         stateFilter: stateFilterSelect.value,
         gameFilter: currentGameTab,
         subDexFilter: subDexFilterSelect.value, 
+        glowEnabled: glowEnabled,
         filters: [...filterModes.entries()], 
         theme: currentTheme
       }));
@@ -778,6 +795,7 @@
     let altLayoutEnabled = loadedUiState.altLayout;
     let showVariantsEnabled = loadedUiState.showVariants;
     let currentGameTab = loadedUiState.gameFilter;
+    let glowEnabled = loadedUiState.glowEnabled;
     let currentTheme = loadedUiState.theme;
 
     // --- NEW: Storage logic dynamically tied to the active Game Tab ---
@@ -787,6 +805,28 @@
 
     function loadGameStates() {
       savedStates = JSON.parse(localStorage.getItem(getStorageKey()) || "{}");
+      
+      // Auto-Merge: Ensure National Dex always reflects catches from all games
+      if (currentGameTab === "national") {
+        let changed = false;
+        const gameTabs = ["za", "sv", "pla", "swsh"];
+        for (let tab of gameTabs) {
+          let otherStates = JSON.parse(localStorage.getItem(`${CELL_STATE_KEY}_${tab}`) || "{}");
+          for (const [id, st] of Object.entries(otherStates)) {
+             let natSt = savedStates[id] || { base: 0, extra: false };
+             let needsUpdate = false;
+             if (st.base === 1 && natSt.base !== 1) { natSt.base = 1; needsUpdate = true; }
+             if (st.extra && !natSt.extra) { natSt.extra = true; needsUpdate = true; }
+             if (needsUpdate) {
+               savedStates[id] = natSt;
+               changed = true;
+             }
+          }
+        }
+        if (changed) {
+          localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
+        }
+      }
     }
 
     function getSpriteUrl(apiId, isShiny) {
@@ -802,6 +842,35 @@
     function saveCellState(id, state) {
       savedStates[id] = state;
       localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
+
+      // Upward Sync: Mirror game-specific catches to the National Dex
+      if (currentGameTab !== "national") {
+        let natStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
+        let natSt = natStates[id] || { base: 0, extra: false };
+
+        if (state.base === 1 || state.extra) {
+          if (state.base === 1) natSt.base = 1;
+          if (state.extra) natSt.extra = true;
+        } else {
+          // If un-catching, check if they still have it caught in another game before removing from National
+          let stillCaught = false;
+          let stillShiny = false;
+          const gameTabs = ["za", "sv", "pla", "swsh"];
+          for (let tab of gameTabs) {
+            if (tab === currentGameTab) continue;
+            let otherStates = JSON.parse(localStorage.getItem(`${CELL_STATE_KEY}_${tab}`) || "{}");
+            if (otherStates[id]) {
+              if (otherStates[id].base === 1) stillCaught = true;
+              if (otherStates[id].extra) stillShiny = true;
+            }
+          }
+          natSt.base = stillCaught ? 1 : 0;
+          natSt.extra = stillShiny;
+        }
+
+        natStates[id] = natSt;
+        localStorage.setItem(CELL_STATE_KEY, JSON.stringify(natStates));
+      }
     }
 
     function stateName(state) { return state.extra ? "Caught Shiny" : (state.base === 1 ? "Caught" : "Uncaught"); }
@@ -891,6 +960,14 @@
       altLayoutToggle.setAttribute("aria-pressed", String(altLayoutEnabled));
       if (persist) saveUiState();
       layoutGrid();
+    }
+    
+    function applyGlow(enabled, persist = true) {
+      glowEnabled = !!enabled;
+      page.classList.toggle("glow-enabled", glowEnabled);
+      glowToggle.classList.toggle("active", glowEnabled);
+      glowToggle.setAttribute("aria-pressed", String(glowEnabled));
+      if (persist) saveUiState();
     }
 
     function setViewMode(nextMode, persist = true) {
@@ -986,20 +1063,33 @@
 
         totalFilteredScope++;
 
+        // State Filtering Logic
         let stateMatch = true;
         if (sf === "caught") stateMatch = rec.state.base === 1;
         if (sf === "missing") stateMatch = rec.state.base === 0;
         if (sf === "shiny") stateMatch = rec.state.extra === true;
 
-        const matchQ = !q || id.toLowerCase().includes(q) || rec.data.name.toLowerCase().includes(q);
+        // Range Searching Logic
+        let matchQ = false;
+        const rangeMatch = q.match(/^(\d+)\s*-\s*(\d+)$/);
+        
+        if (rangeMatch) {
+          const start = Math.min(parseInt(rangeMatch[1], 10), parseInt(rangeMatch[2], 10));
+          const end = Math.max(parseInt(rangeMatch[1], 10), parseInt(rangeMatch[2], 10));
+          const numericId = parseInt(id, 10); // Handles variant strings perfectly (e.g., "19-A" becomes 19)
+          matchQ = numericId >= start && numericId <= end;
+        } else {
+          matchQ = !q || id.toLowerCase().includes(q) || rec.data.name.toLowerCase().includes(q);
+        }
         
         if (matchQ && stateMatch) {
           rec.dom.style.display = ""; 
           
+          // Apply custom order instantly via CSS Grid
           if (activeGameDex) {
             rec.dom.style.order = activeGameDex.indexOf(id);
           } else {
-            rec.dom.style.order = "";
+            rec.dom.style.order = ""; // Reset to National Dex layout
           }
           count++;
         } else { 
@@ -1088,6 +1178,68 @@
       if (e.key.toLowerCase() === 'v' && e.target.tagName !== 'INPUT') { toggleVariants(); }
     });
 
+    // MARK VISIBLE BUTTON LOGIC
+    function markAllVisible(asShiny) {
+      let changed = false;
+      let natStates = null;
+      if (currentGameTab !== "national") {
+        natStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
+      }
+
+      cellRegistry.forEach((rec, id) => {
+        if (rec.dom.style.display !== "none") {
+          const targetBase = 1;
+          const targetExtra = asShiny;
+          
+          if (rec.state.base !== targetBase || rec.state.extra !== targetExtra) {
+            rec.state.base = targetBase;
+            rec.state.extra = targetExtra;
+            
+            // Update Current Game Memory
+            savedStates[id] = rec.state;
+            
+            // Sync to National Memory
+            if (natStates) {
+              let natSt = natStates[id] || { base: 0, extra: false };
+              natSt.base = 1;
+              if (asShiny) natSt.extra = true;
+              natStates[id] = natSt;
+            }
+            
+            updateCellVisuals(rec);
+            changed = true;
+          }
+        }
+      });
+      
+      if (changed) {
+        // Batch Save to LocalStorage
+        localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
+        if (natStates) {
+          localStorage.setItem(CELL_STATE_KEY, JSON.stringify(natStates));
+        }
+
+        if (stateFilterSelect.value !== "all") {
+          applyFilters();
+        } else {
+          let scopeTotal = 0;
+          const activeGameDex = getActiveGameDex();
+          cellRegistry.forEach((r, idx) => {
+            if (r.data.isVariant && !showVariantsEnabled) return;
+            if (activeGameDex && !activeGameDex.includes(idx)) return;
+            scopeTotal++;
+          });
+          updateStatusDisplay(scopeTotal);
+        }
+      }
+    }
+
+    markVisibleBtn.addEventListener("click", () => markAllVisible(false));
+    markVisibleBtn.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      markAllVisible(true);
+    });
+
     // BOTTOM NAVIGATION TAB SWITCHING
     document.querySelectorAll(".nav-tab").forEach(tab => {
       tab.addEventListener("click", () => {
@@ -1120,6 +1272,7 @@
     stateFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
     subDexFilterSelect.addEventListener("change", () => { saveUiState(); applyFilters(); });
     variantToggle.addEventListener("click", () => toggleVariants());
+    glowToggle.addEventListener("click", () => applyGlow(!glowEnabled));
     resetFilters.addEventListener("click", () => { 
       stateFilterSelect.value = "all";
       subDexFilterSelect.value = "all";
@@ -1185,6 +1338,7 @@
         applyTheme(currentTheme, false);
         setViewMode(viewMode, false);
         applyAltLayout(altLayoutEnabled, false);
+        applyGlow(glowEnabled, false);
         
         // Setup Sub Dex Filter Dropdown
         const regions = gameRegions[currentGameTab];
