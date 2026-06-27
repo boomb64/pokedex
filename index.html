@@ -648,20 +648,16 @@
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // 1. ADD YOUR FIREBASE CONFIG HERE TO ENABLE MULTIPLAYER ON GITHUB
-    // Go to console.firebase.google.com -> Create a Free Web Project -> Paste config below:
-    const myFirebaseConfig = {
-      // apiKey: "YOUR_API_KEY",
-      // authDomain: "YOUR_PROJECT.firebaseapp.com",
-      // projectId: "YOUR_PROJECT_ID",
-      // storageBucket: "YOUR_PROJECT.appspot.com",
-      // messagingSenderId: "123456",
-      // appId: "1:123456:web:123456"
+    // Cleaned up the config to properly use your credentials
+    const firebaseConfig = {
+      apiKey: "AIzaSyDy3i6pYGqN-J6Q_j0BKOr1CB6nQ63hXx4",
+      authDomain: "pokedex-multiplayer.firebaseapp.com",
+      projectId: "pokedex-multiplayer",
+      storageBucket: "pokedex-multiplayer.firebasestorage.app",
+      messagingSenderId: "69335228112",
+      appId: "1:69335228112:web:5d6c7453b72966ed6ec8d5"
     };
 
-    // Auto-fallback to the AI test environment if running inside the preview window
-    const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const firebaseConfig = Object.keys(myFirebaseConfig).length > 0 ? myFirebaseConfig : envConfig;
     const isMultiplayerConfigured = !!firebaseConfig.projectId;
 
     let app, auth, db, appId;
@@ -669,7 +665,7 @@
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
-      appId = typeof __app_id !== 'undefined' ? __app_id : 'custom-pokedex-app';
+      appId = 'pokedex-multiplayer'; // using project ID for path consistency
     }
 
     let currentUser = null;
@@ -1094,8 +1090,11 @@
 
     function setDexMode(newMode, persist = true) {
       // If switching to group mode, but Firebase is not configured properly, prevent it
-      if (newMode === "group" && !isMultiplayerConfigured) {
-        dynamicHint.innerHTML = `<span style="color:#ef4444; font-weight:bold;">Group Dex is disabled.</span> You must add a Firebase configuration to the code to use Multiplayer.`;
+      if (newMode === "group" && (!isMultiplayerConfigured || !currentUser)) {
+        dynamicHint.innerHTML = `<span style="color:#ef4444; font-weight:bold;">Group Dex is disabled.</span> Multiplayer failed to connect. Make sure you are running on a web server (http/https) and not a local file (file://).`;
+        dexModeToggle.textContent = "Mode: Personal";
+        dexModeToggle.classList.remove("group-active");
+        dexMode = "personal"; // Ensure state stays personal
         return;
       }
 
@@ -1548,7 +1547,34 @@
 
         grid.style.display = ""; grid.innerHTML = "";
 
-        // Build the basic interface first, BEFORE trying to connect to Firebase
+        // Authenticate for Multiplayer (only if config exists)
+        if (isMultiplayerConfigured) {
+          try {
+            const initAuth = async () => {
+              if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+              } else {
+                await signInAnonymously(auth);
+              }
+            };
+            await initAuth();
+            currentUser = auth.currentUser;
+            
+            onAuthStateChanged(auth, (user) => {
+              currentUser = user;
+              if (user) {
+                setupRealtimeListener();
+                publishMyData(); 
+              } else if (unsubscribeGroup) {
+                unsubscribeGroup();
+              }
+            });
+          } catch (authError) {
+            console.error("Firebase Authentication Error:", authError);
+            currentUser = null;
+          }
+        }
+
         loadGameStates();
         initializeDOM();
         
@@ -1577,40 +1603,6 @@
       } catch (error) {
         console.error("PokeAPI Error:", error);
         grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; color:#ef4444;"><b>Failed to load Pokémon database.</b><br><small>Check your internet connection and refresh the page.</small></div>`;
-        return; // Stop execution if the core Dex fails to load
-      }
-
-      // -----------------------------------------------------------
-      // ISOLATED FIREBASE INITIALIZATION 
-      // (If this fails, it won't crash the rest of the application)
-      // -----------------------------------------------------------
-      if (isMultiplayerConfigured) {
-        try {
-          const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-              await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-              await signInAnonymously(auth);
-            }
-          };
-          await initAuth();
-          
-          onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-              setupRealtimeListener();
-              publishMyData(); 
-            } else if (unsubscribeGroup) {
-              unsubscribeGroup();
-            }
-          });
-        } catch (firebaseError) {
-          console.error("Firebase Authentication Error:", firebaseError);
-          dynamicHint.innerHTML = `<span style="color:#ef4444; font-weight:bold;">Multiplayer Connection Failed.</span> Check your console for details. (Did you enable Anonymous Login in Firebase?)`;
-          
-          // Force revert to Personal Mode if it broke
-          if (dexMode === "group") setDexMode("personal");
-        }
       }
     }
 
