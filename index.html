@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pokémon Shiny & Catch Tracker</title>
+  <title>Pokémon Multiplayer Tracker</title>
   <style>
     :root {
       --bg-solid: #ffffff;
@@ -104,6 +104,7 @@
     .view-toggle,
     .settings-button,
     .variant-toggle,
+    .mode-toggle,
     .action-btn {
       border: 1px solid var(--button-border);
       border-radius: 999px;
@@ -121,6 +122,7 @@
     .view-toggle:hover,
     .settings-button:hover,
     .variant-toggle:hover,
+    .mode-toggle:hover,
     .action-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
@@ -133,6 +135,14 @@
       background: linear-gradient(#f8fbff, #f8fbff) padding-box, linear-gradient(135deg, #6366f1, #22c55e, #06b6d4) border-box;
       border-color: transparent;
       box-shadow: 0 8px 18px rgba(99, 102, 241, 0.18);
+    }
+
+    /* Multiplayer Group Mode Styling */
+    .mode-toggle.group-active {
+      color: #ffffff;
+      background: linear-gradient(#2d3748, #2d3748) padding-box, linear-gradient(135deg, #8b5cf6, #d946ef, #f43f5e) border-box;
+      border-color: transparent;
+      box-shadow: 0 8px 18px rgba(139, 92, 246, 0.25);
     }
 
     .hint {
@@ -255,6 +265,7 @@
       white-space: nowrap;
       display: flex;
       gap: 16px;
+      align-items: center;
     }
     
     .status-group {
@@ -266,6 +277,19 @@
     .status-val { font-weight: 800; color: var(--text); }
     .status-shiny { color: #d97706; }
     .status-caught { color: #059669; }
+    
+    .multiplayer-badge {
+      display: none;
+      background: #8b5cf6;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .multiplayer-badge.visible {
+      display: inline-block;
+    }
 
     .grid-container {
       flex: 1 1 auto;
@@ -462,6 +486,18 @@
 
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
     .color-field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 600; }
+    
+    .text-input {
+      padding: 10px;
+      border: 1px solid var(--button-border);
+      border-radius: 12px;
+      background: var(--button-bg);
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+    }
+    .text-input:focus { border-color: var(--accent); }
+
     .color-input { width: 100%; height: 48px; padding: 0; border: none; border-radius: 14px; background: transparent; cursor: pointer; }
     .color-input::-webkit-color-swatch-wrapper { padding: 0; }
     .color-input::-webkit-color-swatch { border: 1px solid var(--button-border); border-radius: 14px; }
@@ -510,15 +546,16 @@
       <div class="header-top">
         <h1>Pokémon Tracker</h1>
         <div class="header-controls">
+          <button id="dexModeToggle" class="mode-toggle" type="button">Mode: Personal</button>
           <button id="variantToggle" class="variant-toggle" type="button" title="Shortcut: V">Variants: Hidden</button>
           <button id="viewToggle" class="view-toggle" type="button">List View</button>
         </div>
       </div>
 
-      <p class="hint">Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.</p>
+      <p class="hint" id="dynamicHint">Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.</p>
 
       <div class="toolbar">
-        <button id="markVisibleBtn" class="action-btn" type="button" title="Left Click = Caught, Right Click = Shiny">Mark Caught</button>
+        <button id="markVisibleBtn" class="action-btn" type="button" title="Left Click = Caught, Right Click = Shiny">Mark Visible</button>
         <select id="subDexFilterSelect" class="filter-select" style="display: none;">
           <option value="all">Region: All</option>
         </select>
@@ -540,6 +577,7 @@
           <button id="clearSearch" class="clear-search" type="button" aria-label="Clear search">×</button>
         </div>
         <div id="statusLine" class="status-line">
+          <span id="activeTrainersBadge" class="multiplayer-badge">0 Trainers Live</span>
           <div class="status-group">Showing: <span id="statVisible" class="status-val">0</span></div>
           <div class="status-group">Caught: <span id="statCaught" class="status-val status-caught">0</span></div>
           <div class="status-group">Shiny: <span id="statShiny" class="status-val status-shiny">0</span></div>
@@ -566,8 +604,13 @@
   <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
     <div class="settings-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <div class="settings-header">
-        <h2 id="settingsTitle">Background Settings</h2>
+        <h2 id="settingsTitle">Tracker Settings</h2>
         <button id="closeSettings" class="settings-close" type="button">Close</button>
+      </div>
+
+      <div class="color-field" style="margin-bottom: 16px;">
+        <label for="trainerNameInput">Trainer Name (For Group Dex)</label>
+        <input id="trainerNameInput" type="text" class="text-input" placeholder="Enter your name...">
       </div>
 
       <div class="settings-grid">
@@ -599,13 +642,50 @@
     </div>
   </div>
 
-  <script>
+  <!-- MULTIPLAYER AND CORE SCRIPT -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // 1. ADD YOUR FIREBASE CONFIG HERE TO ENABLE MULTIPLAYER ON GITHUB
+    // Go to console.firebase.google.com -> Create a Free Web Project -> Paste config below:
+    const myFirebaseConfig = {
+      // apiKey: "YOUR_API_KEY",
+      // authDomain: "YOUR_PROJECT.firebaseapp.com",
+      // projectId: "YOUR_PROJECT_ID",
+      // storageBucket: "YOUR_PROJECT.appspot.com",
+      // messagingSenderId: "123456",
+      // appId: "1:123456:web:123456"
+    };
+
+    // Auto-fallback to the AI test environment if running inside the preview window
+    const envConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const firebaseConfig = Object.keys(myFirebaseConfig).length > 0 ? myFirebaseConfig : envConfig;
+    const isMultiplayerConfigured = !!firebaseConfig.projectId;
+
+    let app, auth, db, appId;
+    if (isMultiplayerConfigured) {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      appId = typeof __app_id !== 'undefined' ? __app_id : 'custom-pokedex-app';
+    }
+
+    let currentUser = null;
+    let groupStates = {};
+    let groupCaughtBy = {}; // Maps Pokemon ID to an object of { base: ['Names'], extra: ['Names'] }
+    let unsubscribeGroup = null;
+
+    // --- DOM ELEMENTS ---
     const page = document.querySelector(".page");
     const grid = document.getElementById("grid");
     const searchBox = document.getElementById("searchBox");
     const clearSearch = document.getElementById("clearSearch");
+    const dynamicHint = document.getElementById("dynamicHint");
     
     // Stats Elements
+    const activeTrainersBadge = document.getElementById("activeTrainersBadge");
     const statVisible = document.getElementById("statVisible");
     const statCaught = document.getElementById("statCaught");
     const statShiny = document.getElementById("statShiny");
@@ -613,6 +693,7 @@
     const gridContainer = document.getElementById("gridContainer");
     const viewToggle = document.getElementById("viewToggle");
     const variantToggle = document.getElementById("variantToggle");
+    const dexModeToggle = document.getElementById("dexModeToggle");
     const markVisibleBtn = document.getElementById("markVisibleBtn");
     const resetFilters = document.getElementById("resetFilters");
     const stateFilterSelect = document.getElementById("stateFilterSelect");
@@ -627,6 +708,7 @@
     const altLayoutToggle = document.getElementById("altLayoutToggle");
     const glowToggle = document.getElementById("glowToggle");
     const cellTooltip = document.getElementById("cellTooltip");
+    const trainerNameInput = document.getElementById("trainerNameInput");
 
     let totalVisibleCells = 0;
     const TARGET_CELL_SIZE = 100;
@@ -710,7 +792,9 @@
       "pla_base": ["722", "723", "724-H", "155", "156", "157-H", "501", "502", "503-H", "399", "400", "396", "397", "398", "403", "404", "405", "265", "266", "267", "268", "269", "77", "78", "133", "134", "135", "136", "196", "197", "470", "471", "700", "41", "42", "169", "425", "426", "401", "402", "418", "419", "412", "413", "414", "74", "75", "76", "234", "899", "446", "143", "46", "47", "172", "25", "26", "63", "64", "65", "390", "391", "392", "427", "428", "420", "421", "54", "55", "415", "416", "123", "900", "212", "214", "439", "122", "190", "424", "129", "130", "422", "423", "211-H", "904", "440", "113", "242", "406", "315", "407", "455", "548", "549-H", "114", "465", "339", "340", "453", "454", "280", "281", "282", "475", "193", "469", "449", "450", "417", "434", "435", "216", "217", "901", "704", "705-H", "706-H", "95", "208", "111", "112", "464", "438", "185", "108", "463", "175", "176", "468", "387", "388", "389", "137", "233", "474", "92", "93", "94", "442", "198", "430", "201", "363", "364", "365", "223", "224", "451", "452", "58-H", "59-H", "431", "432", "66", "67", "68", "441", "355", "356", "477", "393", "394", "395", "458", "226", "550", "902", "37", "37-A", "38", "38-A", "72", "73", "456", "457", "240", "126", "467", "81", "82", "462", "436", "437", "239", "125", "466", "207", "472", "443", "444", "445", "299", "476", "100-H", "101-H", "479", "433", "358", "200", "429", "173", "35", "36", "215-H", "215", "903", "461", "361", "362", "478", "408", "409", "410", "411", "220", "221", "473", "712", "713-H", "459", "460", "570-H", "571-H", "627", "628-H", "447", "448", "480", "481", "482", "485", "486", "488", "641", "642", "645", "905", "483", "484", "487", "493", "489", "490", "492", "491"],
       "za_base": ["152", "153", "154", "498", "499", "500", "158", "159", "160", "661", "662", "663", "659", "660", "664", "665", "666", "13", "14", "15", "16", "17", "18", "179", "180", "181", "504", "505", "406", "315", "407", "129", "130", "688", "689", "120", "121", "669", "670", "671", "672", "673", "677", "678", "667", "668", "674", "675", "568", "569", "702", "172", "25", "26", "26-A", "173", "35", "36", "167", "168", "23", "24", "63", "64", "65", "92", "93", "94", "543", "544", "545", "679", "680", "681", "69", "70", "71", "511", "512", "513", "514", "515", "516", "307", "308", "309", "310", "280", "281", "282", "475", "228", "229", "333", "334", "531", "682", "683", "684", "685", "133", "134", "135", "136", "196", "197", "470", "471", "700", "427", "428", "353", "354", "582", "583", "584", "322", "323", "449", "450", "529", "530", "551", "552", "553", "123", "212", "127", "214", "1", "2", "3", "4", "5", "6", "7", "8", "9", "618", "618-G", "676", "686", "687", "690", "691", "692", "693", "694", "695", "696", "697", "698", "699", "701", "703", "704", "705", "706", "707", "708", "709", "710", "711", "712", "713", "714", "715", "716", "717", "718", "719", "225", "227", "302", "303", "304", "305", "306", "318", "319", "359", "361", "362", "478", "371", "372", "373", "374", "375", "376", "443", "444", "445", "447", "448", "459", "460", "559", "560", "587", "602", "603", "604", "607", "608", "609", "650", "651", "652", "653", "654", "655", "656", "657", "658", "870"],
       "za_dlc": ["56", "57", "979", "52", "52-A", "52-G", "53", "53-A", "863", "83", "83-G", "865", "104", "105", "105-A", "137", "233", "474", "951", "952", "957", "958", "959", "967", "969", "970", "971", "972", "973", "977", "978", "352", "615", "622", "623", "211", "211-H", "904", "252", "253", "254", "255", "256", "257", "258", "259", "260", "349", "350", "358", "433", "39", "40", "174", "396", "397", "398", "325", "326", "931", "932", "933", "934", "316", "317", "41", "42", "169", "935", "936", "937", "942", "943", "944", "945", "122", "122-G", "439", "866", "590", "591", "485", "721", "638", "639", "640", "647", "648", "649", "720", "801", "802", "807", "808", "809", "821", "822", "823", "827", "828", "848", "849", "852", "853", "867", "876", "877", "900", "926", "927", "996", "997", "998", "999", "1000", "739", "740", "767", "768", "769", "770", "778", "780", "705-H", "706-H", "713-H", "479", "380", "381", "382", "383", "384", "491", "509", "510", "517", "518", "538", "539", "562", "562-G", "563"],
-      "sv_paldea": ["906", "907", "908", "909", "910", "911", "912", "913", "914", "915", "916", "917", "918", "919", "920", "187", "188", "189", "661", "662", "663", "921", "922", "923", "228", "229", "734", "735", "819", "820", "191", "192", "401", "402", "664", "665", "666", "415", "416", "821", "822", "823", "440", "113", "242", "298", "183", "184", "283", "284", "418", "419", "194-P", "980", "54", "55", "833", "834", "174", "39", "40", "280", "281", "282", "475", "96", "97", "92", "93", "94", "924", "925", "172", "25", "26", "926", "927", "287", "288", "289", "761", "762", "763", "928", "929", "930", "438", "185", "744", "745", "837", "838", "839", "403", "404", "405", "396", "397", "398", "741", "179", "180", "181", "548", "549", "285", "286", "840", "841", "842", "325", "326", "931", "200", "429", "296", "297", "739", "740", "757", "758", "231", "232", "878", "879", "443", "444", "445", "932", "933", "934", "278", "279", "129", "130", "846", "847", "550", "316", "317", "52", "53", "425", "426", "669", "670", "671", "50", "51", "324", "322", "323", "436", "437", "610", "611", "612", "56", "57", "979", "307", "308", "447", "448", "935", "936", "937", "339", "340", "938", "939", "704", "705", "706", "453", "454", "940", "941", "133", "134", "135", "136", "196", "197", "470", "471", "700", "206", "982", "585", "586", "203", "981", "88", "89", "942", "943", "848", "849", "702", "417", "944", "945", "234", "590", "591", "100", "101", "81", "82", "462", "132", "58", "59", "216", "217", "335", "336", "333", "334", "672", "673", "128-P1", "128-P2", "128-P3", "667", "668", "434", "435", "570", "571", "215", "461", "198", "430", "574", "575", "576", "854", "855", "778", "707", "876", "946", "947", "948", "949", "357", "753", "754", "950", "951", "952", "331", "332", "953", "954", "48", "49", "204", "205", "123", "212", "214", "955", "956", "449", "450", "551", "552", "553", "843", "844", "749", "750", "636", "637", "371", "372", "373", "957", "958", "959", "856", "857", "858", "859", "860", "861", "960", "961", "962", "963", "964", "965", "966", "967", "968", "302", "353", "354", "870", "701", "442", "714", "715", "885", "886", "887", "969", "970", "479", "971", "972", "765", "766", "775", "246", "247", "248", "874", "875", "871", "769", "770", "79", "80", "199", "422", "423", "90", "91", "211", "370", "456", "457", "779", "594", "690", "691", "692", "693", "602", "603", "604", "747", "748", "973", "147", "148", "149", "872", "873", "459", "460", "225", "613", "614", "361", "362", "478", "615", "974", "975", "712", "713", "627", "628", "624", "625", "983", "633", "634", "635", "976", "977", "978", "984", "985", "986", "987", "988", "989", "990", "991", "992", "993", "994", "995", "996", "997", "998", "999", "1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"]
+      "sv_paldea": ["906", "907", "908", "909", "910", "911", "912", "913", "914", "915", "916", "917", "918", "919", "920", "187", "188", "189", "661", "662", "663", "921", "922", "923", "228", "229", "734", "735", "819", "820", "191", "192", "401", "402", "664", "665", "666", "415", "416", "821", "822", "823", "440", "113", "242", "298", "183", "184", "283", "284", "418", "419", "194-P", "980", "54", "55", "833", "834", "174", "39", "40", "280", "281", "282", "475", "96", "97", "92", "93", "94", "924", "925", "172", "25", "26", "926", "927", "287", "288", "289", "761", "762", "763", "928", "929", "930", "438", "185", "744", "745", "837", "838", "839", "403", "404", "405", "396", "397", "398", "741", "179", "180", "181", "548", "549", "285", "286", "840", "841", "842", "325", "326", "931", "200", "429", "296", "297", "739", "740", "757", "758", "231", "232", "878", "879", "443", "444", "445", "932", "933", "934", "278", "279", "129", "130", "846", "847", "550", "316", "317", "52", "53", "425", "426", "669", "670", "671", "50", "51", "324", "322", "323", "436", "437", "610", "611", "612", "56", "57", "979", "307", "308", "447", "448", "935", "936", "937", "339", "340", "938", "939", "704", "705", "706", "453", "454", "940", "941", "133", "134", "135", "136", "196", "197", "470", "471", "700", "206", "982", "585", "586", "203", "981", "88", "89", "942", "943", "848", "849", "702", "417", "944", "945", "234", "590", "591", "100", "101", "81", "82", "462", "132", "58", "59", "216", "217", "335", "336", "333", "334", "672", "673", "128-P1", "128-P2", "128-P3", "667", "668", "434", "435", "570", "571", "215", "461", "198", "430", "574", "575", "576", "854", "855", "778", "707", "876", "946", "947", "948", "949", "357", "753", "754", "950", "951", "952", "331", "332", "953", "954", "48", "49", "204", "205", "123", "212", "214", "955", "956", "449", "450", "551", "552", "553", "843", "844", "749", "750", "636", "637", "371", "372", "373", "957", "958", "959", "856", "857", "858", "859", "860", "861", "960", "961", "962", "963", "964", "965", "966", "967", "968", "302", "353", "354", "870", "701", "442", "714", "715", "885", "886", "887", "969", "970", "479", "971", "972", "765", "766", "775", "246", "247", "248", "874", "875", "871", "769", "770", "79", "80", "199", "422", "423", "90", "91", "211", "370", "456", "457", "779", "594", "690", "691", "692", "693", "602", "603", "604", "747", "748", "973", "147", "148", "149", "872", "873", "459", "460", "225", "613", "614", "361", "362", "478", "615", "974", "975", "712", "713", "627", "628", "624", "625", "983", "633", "634", "635", "976", "977", "978", "984", "985", "986", "987", "988", "989", "990", "991", "992", "993", "994", "995", "996", "997", "998", "999", "1000", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008"],
+      "sv_kitakami": ["167", "168", "193", "469", "194", "195", "261", "262", "313", "314", "341", "342", "540", "541", "542", "742", "743", "23", "24", "172", "25", "26", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "38", "60", "61", "62", "186", "440", "113", "242", "163", "164", "190", "424", "220", "221", "473", "234", "273", "274", "275", "833", "834", "174", "39", "40", "280", "281", "282", "475", "548", "549", "708", "709", "744", "745", "819", "820", "948", "949", "1012", "1013", "58", "59", "74", "75", "76", "438", "185", "532", "533", "534", "714", "715", "846", "847", "856", "857", "858", "877", "968", "924", "925", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "741", "27", "28", "92", "93", "94", "207", "472", "228", "229", "325", "326", "629", "630", "749", "750", "782", "783", "784", "962", "109", "110", "619", "620", "355", "356", "477", "433", "358", "218", "219", "607", "608", "609", "283", "284", "173", "35", "36", "436", "437", "969", "970", "349", "350", "206", "982", "339", "340", "443", "444", "445", "703", "757", "758", "215", "461", "361", "362", "478", "602", "603", "604", "704", "705", "706", "580", "581", "845", "624", "625", "983", "778", "859", "860", "861", "876", "88", "89", "942", "943", "1014", "1015", "1016", "1017"],
+      "sv_blueberry": ["84", "85", "102", "103", "103-A", "111", "112", "464", "48", "49", "239", "125", "466", "240", "126", "467", "440", "113", "242", "123", "212", "900", "128", "69", "70", "71", "161", "162", "396", "397", "398", "753", "754", "840", "841", "842", "1011", "37", "37-A", "38", "38-A", "60", "61", "62", "186", "129", "130", "163", "164", "190", "424", "214", "72", "73", "116", "117", "230", "235", "546", "547", "764", "287", "288", "289", "43", "44", "45", "182", "50", "50-A", "51", "51-A", "88", "88-A", "89", "89-A", "335", "336", "739", "740", "741", "79", "79-G", "80", "80-G", "199", "199-G", "170", "171", "686", "687", "370", "456", "457", "594", "324", "661", "662", "663", "751", "752", "236", "106", "107", "237", "74", "74-A", "75", "75-A", "76", "76-A", "56", "57", "979", "446", "143", "270", "271", "272", "299", "476", "403", "404", "405", "736", "737", "738", "638", "639", "640", "647", "311", "312", "207", "472", "622", "623", "322", "323", "629", "630", "137", "233", "474", "595", "596", "962", "109", "110", "374", "375", "376", "610", "611", "612", "86", "87", "131", "211", "904", "577", "578", "579", "209", "210", "613", "614", "27", "27-A", "28", "28-A", "459", "460", "884", "1018", "1019", "1", "2", "3", "4", "5", "6", "7", "8", "9", "152", "153", "154", "155", "156", "157", "158", "159", "160", "252", "253", "254", "255", "256", "257", "258", "259", "260", "387", "388", "389", "390", "391", "392", "393", "394", "395", "495", "496", "497", "498", "499", "500", "501", "502", "503", "650", "651", "652", "653", "654", "655", "656", "657", "658", "722", "723", "724", "725", "726", "727", "728", "729", "730", "810", "811", "812", "813", "814", "815", "816", "817", "818", "1020", "1021", "1023", "1022", "1024", "1009", "1010", "1025"]
     };
 
     // --- GAME STRUCTURE FOR TOP DROPDOWN ---
@@ -739,8 +823,9 @@
 
     let allCells = [];
     const cellRegistry = new Map();
-    let savedStates = {}; // Will be dynamically loaded based on the current tab
-
+    let savedStates = {}; // Local state for active tab
+    
+    // Default state
     const defaultUiState = { 
       search: "", 
       viewMode: "grid", 
@@ -750,6 +835,7 @@
       gameFilter: "national", 
       subDexFilter: "all",
       glowEnabled: false, 
+      dexMode: "personal",
       filters: [], 
       theme: { mode: "system" } 
     };
@@ -768,6 +854,7 @@
           gameFilter: p.gameFilter || "national",
           subDexFilter: p.subDexFilter || "all", 
           glowEnabled: Boolean(p.glowEnabled),
+          dexMode: p.dexMode || "personal",
           filters: Array.isArray(p.filters) ? p.filters : [],
           theme: p.theme && typeof p.theme === "object" ? p.theme : { mode: "system" }
         };
@@ -784,6 +871,7 @@
         gameFilter: currentGameTab,
         subDexFilter: subDexFilterSelect.value, 
         glowEnabled: glowEnabled,
+        dexMode: dexMode,
         filters: [...filterModes.entries()], 
         theme: currentTheme
       }));
@@ -797,8 +885,16 @@
     let currentGameTab = loadedUiState.gameFilter;
     let glowEnabled = loadedUiState.glowEnabled;
     let currentTheme = loadedUiState.theme;
+    let dexMode = loadedUiState.dexMode; // "personal" or "group"
+    
+    // Pre-fill trainer name
+    trainerNameInput.value = localStorage.getItem('trainerName') || "";
+    trainerNameInput.addEventListener("input", (e) => {
+      localStorage.setItem("trainerName", e.target.value);
+      publishMyData();
+    });
 
-    // --- NEW: Storage logic dynamically tied to the active Game Tab ---
+    // --- LOCAL STORAGE LOGIC ---
     function getStorageKey() {
       return currentGameTab === "national" ? CELL_STATE_KEY : `${CELL_STATE_KEY}_${currentGameTab}`;
     }
@@ -806,7 +902,7 @@
     function loadGameStates() {
       savedStates = JSON.parse(localStorage.getItem(getStorageKey()) || "{}");
       
-      // Auto-Merge: Ensure National Dex always reflects catches from all games
+      // Auto-Merge: Ensure National Dex reflects catches from all games
       if (currentGameTab === "national") {
         let changed = false;
         const gameTabs = ["za", "sv", "pla", "swsh"];
@@ -835,6 +931,11 @@
     }
 
     function getCellState(id) {
+      // If viewing the group dex, pull from the live firebase object
+      if (dexMode === "group") {
+        return groupStates[id] || { base: 0, extra: false };
+      }
+      // Otherwise, pull local state
       const st = savedStates[id];
       return st ? { base: Number(st.base ?? 0), extra: Boolean(st.extra ?? false) } : { base: 0, extra: false };
     }
@@ -843,7 +944,7 @@
       savedStates[id] = state;
       localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
 
-      // Upward Sync: Mirror game-specific catches to the National Dex
+      // Upward Sync
       if (currentGameTab !== "national") {
         let natStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
         let natSt = natStates[id] || { base: 0, extra: false };
@@ -852,7 +953,6 @@
           if (state.base === 1) natSt.base = 1;
           if (state.extra) natSt.extra = true;
         } else {
-          // If un-catching, check if they still have it caught in another game before removing from National
           let stillCaught = false;
           let stillShiny = false;
           const gameTabs = ["za", "sv", "pla", "swsh"];
@@ -867,10 +967,12 @@
           natSt.base = stillCaught ? 1 : 0;
           natSt.extra = stillShiny;
         }
-
         natStates[id] = natSt;
         localStorage.setItem(CELL_STATE_KEY, JSON.stringify(natStates));
       }
+      
+      // Trigger cloud sync
+      publishMyData();
     }
 
     function stateName(state) { return state.extra ? "Caught Shiny" : (state.base === 1 ? "Caught" : "Uncaught"); }
@@ -895,7 +997,18 @@
     }
 
     function showTooltip(e, data, state) {
-      cellTooltip.textContent = `Dex #${data.id}\n${data.name}\nStatus: ${stateName(state)}`;
+      let txt = `Dex #${data.id}\n${data.name}\nStatus: ${stateName(state)}`;
+      
+      // Group Dex Tooltip Addition
+      if (dexMode === "group") {
+        const catches = groupCaughtBy[data.id];
+        if (catches) {
+          if (catches.base.length > 0) txt += `\nCaught by: ${catches.base.join(', ')}`;
+          if (catches.extra.length > 0) txt += `\nShiny by: ${catches.extra.join(', ')}`;
+        }
+      }
+      
+      cellTooltip.textContent = txt;
       cellTooltip.className = `cell-tooltip visible ${stateClass(state)}`;
       cellTooltip.setAttribute("aria-hidden", "false");
       positionTooltip(e);
@@ -978,6 +1091,39 @@
       if (persist) saveUiState();
       layoutGrid();
     }
+
+    function setDexMode(newMode, persist = true) {
+      // If switching to group mode, but Firebase is not configured properly, prevent it
+      if (newMode === "group" && !isMultiplayerConfigured) {
+        dynamicHint.innerHTML = `<span style="color:#ef4444; font-weight:bold;">Group Dex is disabled.</span> You must add a Firebase configuration to the code to use Multiplayer.`;
+        return;
+      }
+
+      dexMode = newMode;
+      dexModeToggle.textContent = dexMode === "personal" ? "Mode: Personal" : "Mode: Group Dex";
+      dexModeToggle.classList.toggle("group-active", dexMode === "group");
+      
+      if (dexMode === "group") {
+        dynamicHint.innerHTML = `Viewing Combined Group Dex. <b style="color:var(--accent);">Switch to Personal Mode to update your catches.</b>`;
+      } else {
+        dynamicHint.innerHTML = `Left click to mark Caught. Right click to mark Caught Shiny. Press <b>V</b> to toggle Variants.`;
+      }
+      
+      // Update DOM states immediately based on selected mode
+      cellRegistry.forEach((rec, id) => {
+        rec.state = getCellState(id);
+        updateCellVisuals(rec);
+      });
+      
+      if (persist) {
+        saveUiState();
+        applyFilters();
+      }
+    }
+    
+    dexModeToggle.addEventListener("click", () => {
+      setDexMode(dexMode === "personal" ? "group" : "personal");
+    });
 
     function toggleVariants(persist = true) {
       showVariantsEnabled = !showVariantsEnabled;
@@ -1076,7 +1222,7 @@
         if (rangeMatch) {
           const start = Math.min(parseInt(rangeMatch[1], 10), parseInt(rangeMatch[2], 10));
           const end = Math.max(parseInt(rangeMatch[1], 10), parseInt(rangeMatch[2], 10));
-          const numericId = parseInt(id, 10); // Handles variant strings perfectly (e.g., "19-A" becomes 19)
+          const numericId = parseInt(id, 10); 
           matchQ = numericId >= start && numericId <= end;
         } else {
           matchQ = !q || id.toLowerCase().includes(q) || rec.data.name.toLowerCase().includes(q);
@@ -1085,11 +1231,10 @@
         if (matchQ && stateMatch) {
           rec.dom.style.display = ""; 
           
-          // Apply custom order instantly via CSS Grid
           if (activeGameDex) {
             rec.dom.style.order = activeGameDex.indexOf(id);
           } else {
-            rec.dom.style.order = ""; // Reset to National Dex layout
+            rec.dom.style.order = "";
           }
           count++;
         } else { 
@@ -1105,6 +1250,8 @@
 
     // Grid Event Delegation
     grid.addEventListener("click", (e) => {
+      if (dexMode === "group") return; // Ignore clicks if viewing the group
+      
       const el = e.target.closest(".cell"); if (!el) return;
       const rec = cellRegistry.get(el.dataset.cellId); if (!rec) return;
 
@@ -1134,8 +1281,11 @@
     });
 
     grid.addEventListener("contextmenu", (e) => {
+      e.preventDefault(); 
+      if (dexMode === "group") return;
+      
       const el = e.target.closest(".cell"); if (!el) return;
-      e.preventDefault(); const rec = cellRegistry.get(el.dataset.cellId); if (!rec) return;
+      const rec = cellRegistry.get(el.dataset.cellId); if (!rec) return;
 
       rec.state.extra = !rec.state.extra;
       if (rec.state.extra) { rec.state.base = 1; }
@@ -1180,6 +1330,8 @@
 
     // MARK VISIBLE BUTTON LOGIC
     function markAllVisible(asShiny) {
+      if (dexMode === "group") return;
+      
       let changed = false;
       let natStates = null;
       if (currentGameTab !== "national") {
@@ -1195,10 +1347,8 @@
             rec.state.base = targetBase;
             rec.state.extra = targetExtra;
             
-            // Update Current Game Memory
             savedStates[id] = rec.state;
             
-            // Sync to National Memory
             if (natStates) {
               let natSt = natStates[id] || { base: 0, extra: false };
               natSt.base = 1;
@@ -1213,11 +1363,12 @@
       });
       
       if (changed) {
-        // Batch Save to LocalStorage
         localStorage.setItem(getStorageKey(), JSON.stringify(savedStates));
         if (natStates) {
           localStorage.setItem(CELL_STATE_KEY, JSON.stringify(natStates));
         }
+        
+        publishMyData();
 
         if (stateFilterSelect.value !== "all") {
           applyFilters();
@@ -1293,7 +1444,76 @@
     window.addEventListener("resize", () => { layoutGrid(); updateScrollBorder(); });
     window.addEventListener("scroll", hideTooltip, { passive: true });
 
-    // ASYNC BOOTLOADER
+    // --- MULTIPLAYER SYNC FUNCTIONS ---
+    let publishTimeout = null;
+    function publishMyData() {
+      if (!isMultiplayerConfigured || !currentUser) return;
+      clearTimeout(publishTimeout);
+      
+      publishTimeout = setTimeout(async () => {
+        // Group dex only cares about total catches, so we sync the national index
+        const myNationalStates = JSON.parse(localStorage.getItem(CELL_STATE_KEY) || "{}");
+        const myName = localStorage.getItem('trainerName') || "Trainer " + currentUser.uid.substring(0,4);
+
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'group_dex', currentUser.uid);
+        await setDoc(docRef, {
+          name: myName,
+          states: myNationalStates,
+          timestamp: Date.now()
+        }, { merge: true });
+      }, 1500); // 1.5s debounce to handle rapid catching
+    }
+
+    function setupRealtimeListener() {
+      if (!isMultiplayerConfigured || !currentUser) return;
+      const groupRef = collection(db, 'artifacts', appId, 'public', 'data', 'group_dex');
+
+      unsubscribeGroup = onSnapshot(groupRef, (snapshot) => {
+        let newGroupStates = {};
+        let newGroupCaughtBy = {};
+        let activeCount = 0;
+
+        snapshot.forEach(document => {
+          activeCount++;
+          const data = document.data();
+          const states = data.states || {};
+          const name = data.name || "Anonymous";
+
+          for (const [id, st] of Object.entries(states)) {
+            if (!newGroupStates[id]) newGroupStates[id] = { base: 0, extra: false };
+            if (!newGroupCaughtBy[id]) newGroupCaughtBy[id] = { base: [], extra: [] };
+
+            if (st.base === 1) {
+              newGroupStates[id].base = 1;
+              newGroupCaughtBy[id].base.push(name);
+            }
+            if (st.extra) {
+              newGroupStates[id].extra = true;
+              newGroupCaughtBy[id].extra.push(name);
+            }
+          }
+        });
+
+        groupStates = newGroupStates;
+        groupCaughtBy = newGroupCaughtBy;
+        
+        activeTrainersBadge.textContent = `${activeCount} Trainer${activeCount !== 1 ? 's' : ''} Live`;
+        activeTrainersBadge.classList.add("visible");
+
+        // Force a visual update if currently viewing Group Dex
+        if (dexMode === 'group') {
+          cellRegistry.forEach((rec, id) => {
+             rec.state = getCellState(id);
+             updateCellVisuals(rec);
+          });
+          applyFilters();
+        }
+      }, (error) => {
+        console.error("Multiplayer Sync Disconnected.", error);
+      });
+    }
+
+    // --- ASYNC BOOTLOADER ---
     async function bootTracker() {
       grid.style.display = "block";
       grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; font-family:sans-serif; color:var(--muted);"><b>Connecting to PokéAPI...</b><br><small>Assembling National Dex (1 - 1025)</small></div>`;
@@ -1303,7 +1523,6 @@
         if (!res.ok) throw new Error("Network response was not ok");
         const masterJson = await res.json();
 
-        // Build base
         let baseCells = masterJson.results.map((item, index) => {
           return {
             id: String(index + 1),
@@ -1313,7 +1532,6 @@
           }
         });
 
-        // Inject variants
         allCells = [];
         baseCells.forEach(baseCell => {
           allCells.push(baseCell);
@@ -1330,17 +1548,15 @@
 
         grid.style.display = ""; grid.innerHTML = "";
 
-        // Load correct states for the active tab before painting the DOM
+        // Build the basic interface first, BEFORE trying to connect to Firebase
         loadGameStates();
-
-        // UI Initialization
         initializeDOM();
+        
         applyTheme(currentTheme, false);
-        setViewMode(viewMode, false);
+        setDexMode(dexMode, false);
         applyAltLayout(altLayoutEnabled, false);
         applyGlow(glowEnabled, false);
         
-        // Setup Sub Dex Filter Dropdown
         const regions = gameRegions[currentGameTab];
         subDexFilterSelect.innerHTML = regions.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
         if (regions.find(r => r.id === loadedUiState.subDexFilter)) {
@@ -1350,7 +1566,6 @@
         }
         subDexFilterSelect.style.display = currentGameTab === "national" ? "none" : "";
 
-        // Ensure UI elements match loaded state
         variantToggle.textContent = showVariantsEnabled ? "Variants: Shown" : "Variants: Hidden";
         variantToggle.classList.toggle("active", showVariantsEnabled);
         stateFilterSelect.value = loadedUiState.stateFilter;
@@ -1360,7 +1575,42 @@
         applyFilters();
 
       } catch (error) {
+        console.error("PokeAPI Error:", error);
         grid.innerHTML = `<div style="padding: 60px 20px; text-align:center; color:#ef4444;"><b>Failed to load Pokémon database.</b><br><small>Check your internet connection and refresh the page.</small></div>`;
+        return; // Stop execution if the core Dex fails to load
+      }
+
+      // -----------------------------------------------------------
+      // ISOLATED FIREBASE INITIALIZATION 
+      // (If this fails, it won't crash the rest of the application)
+      // -----------------------------------------------------------
+      if (isMultiplayerConfigured) {
+        try {
+          const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+              await signInAnonymously(auth);
+            }
+          };
+          await initAuth();
+          
+          onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+              setupRealtimeListener();
+              publishMyData(); 
+            } else if (unsubscribeGroup) {
+              unsubscribeGroup();
+            }
+          });
+        } catch (firebaseError) {
+          console.error("Firebase Authentication Error:", firebaseError);
+          dynamicHint.innerHTML = `<span style="color:#ef4444; font-weight:bold;">Multiplayer Connection Failed.</span> Check your console for details. (Did you enable Anonymous Login in Firebase?)`;
+          
+          // Force revert to Personal Mode if it broke
+          if (dexMode === "group") setDexMode("personal");
+        }
       }
     }
 
